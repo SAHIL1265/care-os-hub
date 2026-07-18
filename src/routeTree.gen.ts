@@ -9,6 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as OtpRouteImport } from './routes/otp'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotRouteImport } from './routes/forgot'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppWellnessRouteImport } from './routes/_app.wellness'
@@ -24,6 +28,26 @@ import { Route as AppAppointmentsRouteImport } from './routes/_app.appointments'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as AppAiRouteImport } from './routes/_app.ai'
 
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OtpRoute = OtpRouteImport.update({
+  id: '/otp',
+  path: '/otp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotRoute = ForgotRouteImport.update({
+  id: '/forgot',
+  path: '/forgot',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -96,6 +120,10 @@ const AppAiRoute = AppAiRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/forgot': typeof ForgotRoute
+  '/login': typeof LoginRoute
+  '/otp': typeof OtpRoute
+  '/signup': typeof SignupRoute
   '/ai': typeof AppAiRoute
   '/analytics': typeof AppAnalyticsRoute
   '/appointments': typeof AppAppointmentsRoute
@@ -111,6 +139,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forgot': typeof ForgotRoute
+  '/login': typeof LoginRoute
+  '/otp': typeof OtpRoute
+  '/signup': typeof SignupRoute
   '/ai': typeof AppAiRoute
   '/analytics': typeof AppAnalyticsRoute
   '/appointments': typeof AppAppointmentsRoute
@@ -128,6 +160,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/forgot': typeof ForgotRoute
+  '/login': typeof LoginRoute
+  '/otp': typeof OtpRoute
+  '/signup': typeof SignupRoute
   '/_app/ai': typeof AppAiRoute
   '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/appointments': typeof AppAppointmentsRoute
@@ -145,6 +181,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/forgot'
+    | '/login'
+    | '/otp'
+    | '/signup'
     | '/ai'
     | '/analytics'
     | '/appointments'
@@ -160,6 +200,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/forgot'
+    | '/login'
+    | '/otp'
+    | '/signup'
     | '/ai'
     | '/analytics'
     | '/appointments'
@@ -176,6 +220,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/forgot'
+    | '/login'
+    | '/otp'
+    | '/signup'
     | '/_app/ai'
     | '/_app/analytics'
     | '/_app/appointments'
@@ -193,10 +241,42 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  ForgotRoute: typeof ForgotRoute
+  LoginRoute: typeof LoginRoute
+  OtpRoute: typeof OtpRoute
+  SignupRoute: typeof SignupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/otp': {
+      id: '/otp'
+      path: '/otp'
+      fullPath: '/otp'
+      preLoaderRoute: typeof OtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot': {
+      id: '/forgot'
+      path: '/forgot'
+      fullPath: '/forgot'
+      preLoaderRoute: typeof ForgotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -333,6 +413,10 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  ForgotRoute: ForgotRoute,
+  LoginRoute: LoginRoute,
+  OtpRoute: OtpRoute,
+  SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
