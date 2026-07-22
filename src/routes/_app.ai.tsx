@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   Bot, Mic, MicOff, Send, Sparkles, FileHeart, Pill, Stethoscope, Brain,
@@ -51,7 +51,7 @@ function formatTime(ts: number) {
 // Minimal, safe markdown-ish renderer: **bold**, ## headings, - bullets, line breaks.
 function RichText({ text }: { text: string }) {
   const lines = text.split("\n");
-  const out: React.ReactNode[] = [];
+  const out: ReactNode[] = [];
   let listBuf: string[] = [];
   const flushList = (key: string) => {
     if (listBuf.length) {
@@ -82,7 +82,7 @@ function RichText({ text }: { text: string }) {
   return <div className="space-y-0.5 text-sm">{out}</div>;
 }
 
-function renderInline(text: string): React.ReactNode {
+function renderInline(text: string): ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((p, i) =>
     p.startsWith("**") && p.endsWith("**")
