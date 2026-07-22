@@ -27,6 +27,7 @@ import { Route as AppEmergencyRouteImport } from './routes/_app.emergency'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppAppointmentsRouteImport } from './routes/_app.appointments'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
+import { Route as AppAiRouteImport } from './routes/_app.ai'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -117,6 +118,11 @@ const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAiRoute = AppAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/otp': typeof OtpRoute
   '/signup': typeof SignupRoute
+  '/ai': typeof AppAiRoute
   '/analytics': typeof AppAnalyticsRoute
   '/appointments': typeof AppAppointmentsRoute
   '/dashboard': typeof AppDashboardRoute
@@ -143,6 +150,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/otp': typeof OtpRoute
   '/signup': typeof SignupRoute
+  '/ai': typeof AppAiRoute
   '/analytics': typeof AppAnalyticsRoute
   '/appointments': typeof AppAppointmentsRoute
   '/dashboard': typeof AppDashboardRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/otp': typeof OtpRoute
   '/signup': typeof SignupRoute
+  '/_app/ai': typeof AppAiRoute
   '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/appointments': typeof AppAppointmentsRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/otp'
     | '/signup'
+    | '/ai'
     | '/analytics'
     | '/appointments'
     | '/dashboard'
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/otp'
     | '/signup'
+    | '/ai'
     | '/analytics'
     | '/appointments'
     | '/dashboard'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/otp'
     | '/signup'
+    | '/_app/ai'
     | '/_app/analytics'
     | '/_app/appointments'
     | '/_app/dashboard'
@@ -376,10 +388,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/ai': {
+      id: '/_app/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof AppAiRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppAiRoute: typeof AppAiRoute
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppAppointmentsRoute: typeof AppAppointmentsRoute
   AppDashboardRoute: typeof AppDashboardRoute
@@ -394,6 +414,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAiRoute: AppAiRoute,
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppAppointmentsRoute: AppAppointmentsRoute,
   AppDashboardRoute: AppDashboardRoute,
