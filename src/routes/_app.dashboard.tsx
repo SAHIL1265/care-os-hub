@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   Activity, Bot, Droplets, Flame, Footprints, HeartPulse, Moon, ShieldCheck,
@@ -35,8 +35,8 @@ function Dashboard() {
         title={`${greet}, ${user.name.split(" ")[0]} 👋`}
         subtitle="Here's your health snapshot for today."
         actions={
-          <Button className="gradient-bg text-white shadow-elegant">
-            <Sparkles className="mr-2 h-4 w-4" /> Ask AI
+          <Button asChild className="gradient-bg text-white shadow-elegant">
+            <Link to="/ai"><Sparkles className="mr-2 h-4 w-4" /> Talk to AI Healthcare Partner</Link>
           </Button>
         }
       />
@@ -92,7 +92,9 @@ function Dashboard() {
                   <p className="mt-1 text-xs text-muted-foreground">{r.detail}</p>
                 </div>
               ))}
-              <Button variant="outline" className="w-full">Open Assistant</Button>
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/ai">Open AI Healthcare Partner</Link>
+              </Button>
             </CardContent>
           </Card>
         </motion.div>
