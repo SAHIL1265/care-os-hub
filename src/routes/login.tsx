@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Heart, Mail, ArrowRight, ShieldCheck, Loader2 } from "lucide-react";
+import { Heart, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,63 +17,53 @@ export const Route = createFileRoute("/login")({
 function Login() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = email.trim().toLowerCase();
-    if (!trimmed) return;
+    if (!trimmed || !password) return;
     setLoading(true);
     try {
-      // shouldCreateUser: false — reject unknown emails.
-      const { error } = await supabase.auth.signInWithOtp({
-        email: trimmed,
-        options: { shouldCreateUser: false },
-      });
+      const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
       if (error) {
         const msg = error.message?.toLowerCase() ?? "";
-        if (msg.includes("signups not allowed") || msg.includes("not allowed") || msg.includes("not found")) {
-          toast.error("No account found for this email. Please sign up first.");
-        } else if (msg.includes("rate") || error.status === 429) {
-          toast.error("Too many requests. Please wait a minute and try again.");
-        } else {
-          toast.error(error.message);
-        }
+        if (msg.includes("invalid")) toast.error("Invalid email or password.");
+        else toast.error(error.message);
         return;
       }
-      toast.success("Verification code sent. Check your inbox.");
-      nav({ to: "/otp", search: { email: trimmed } });
+      toast.success("Welcome back!");
+      nav({ to: "/dashboard" });
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <AuthShell title="Welcome back" subtitle="We'll email you a 6-digit code to sign in.">
+    <AuthShell title="Welcome back" subtitle="Sign in with your email and password.">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <Label>Email</Label>
           <div className="relative">
             <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              required
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              className="pl-9"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <Input required type="email" autoComplete="email" placeholder="you@example.com" className="pl-9" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center justify-between">
+            <Label>Password</Label>
+            <Link to="/forgot" className="text-xs font-medium text-primary hover:underline">Forgot?</Link>
+          </div>
+          <div className="relative">
+            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input required type="password" autoComplete="current-password" placeholder="••••••••" className="pl-9" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
         </div>
         <Button type="submit" disabled={loading} className="w-full gradient-bg text-white shadow-elegant">
-          {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending code…</>) : (<>Send verification code <ArrowRight className="ml-1 h-4 w-4" /></>)}
+          {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in…</>) : (<>Sign in <ArrowRight className="ml-1 h-4 w-4" /></>)}
         </Button>
       </form>
-      <div className="mt-5 flex items-start gap-2 rounded-md border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
-        <ShieldCheck className="mt-0.5 h-4 w-4 text-primary shrink-0" />
-        <span>Codes expire in 5 minutes and can only be used once. Never share your code with anyone.</span>
-      </div>
       <p className="mt-6 text-center text-sm text-muted-foreground">
         New to Sahara? <Link to="/signup" className="font-semibold text-primary hover:underline">Create an account</Link>
       </p>

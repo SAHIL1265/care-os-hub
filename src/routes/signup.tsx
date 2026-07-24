@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, User as UserIcon, ArrowRight, ShieldCheck, Loader2 } from "lucide-react";
+import { Mail, User as UserIcon, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,31 +20,32 @@ function Signup() {
   const [role, setRole] = useState("Patient");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = email.trim().toLowerCase();
-    if (!trimmed || !fullName.trim()) return;
+    if (!trimmed || !fullName.trim() || password.length < 6) {
+      if (password.length < 6) toast.error("Password must be at least 6 characters.");
+      return;
+    }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signUp({
         email: trimmed,
+        password,
         options: {
-          shouldCreateUser: true,
+          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: { full_name: fullName.trim(), role },
         },
       });
       if (error) {
-        if (error.status === 429) {
-          toast.error("Too many requests. Please wait a minute and try again.");
-        } else {
-          toast.error(error.message);
-        }
+        toast.error(error.message);
         return;
       }
-      toast.success("Verification code sent. Check your inbox.");
-      nav({ to: "/otp", search: { email: trimmed } });
+      toast.success("Account created. Welcome to Sahara!");
+      nav({ to: "/dashboard" });
     } finally {
       setLoading(false);
     }
@@ -68,14 +69,11 @@ function Signup() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <IconField icon={UserIcon} label="Full name" placeholder="Aarav Sharma" value={fullName} onChange={(e) => setFullName(e.target.value)} />
         <IconField icon={Mail} label="Email" type="email" placeholder="you@example.com" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <IconField icon={Lock} label="Password" type="password" placeholder="At least 6 characters" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         <Button type="submit" disabled={loading} className="w-full gradient-bg text-white shadow-elegant">
-          {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending code…</>) : (<>Create account <ArrowRight className="ml-1 h-4 w-4" /></>)}
+          {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating account…</>) : (<>Create account <ArrowRight className="ml-1 h-4 w-4" /></>)}
         </Button>
       </form>
-      <div className="mt-5 flex items-start gap-2 rounded-md border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
-        <ShieldCheck className="mt-0.5 h-4 w-4 text-primary shrink-0" />
-        <span>Codes expire in 5 minutes. Never share your code with anyone.</span>
-      </div>
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Already have an account? <Link to="/login" className="font-semibold text-primary hover:underline">Log in</Link>
       </p>
