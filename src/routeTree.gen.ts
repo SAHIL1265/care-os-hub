@@ -25,6 +25,7 @@ import { Route as AppFitnessRouteImport } from './routes/_app.fitness'
 import { Route as AppFamilyRouteImport } from './routes/_app.family'
 import { Route as AppEmergencyRouteImport } from './routes/_app.emergency'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppCallHistoryRouteImport } from './routes/_app.call-history'
 import { Route as AppAppointmentsRouteImport } from './routes/_app.appointments'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as AppAiRouteImport } from './routes/_app.ai'
@@ -108,6 +109,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCallHistoryRoute = AppCallHistoryRouteImport.update({
+  id: '/call-history',
+  path: '/call-history',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAppointmentsRoute = AppAppointmentsRouteImport.update({
   id: '/appointments',
   path: '/appointments',
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/ai': typeof AppAiRoute
   '/analytics': typeof AppAnalyticsRoute
   '/appointments': typeof AppAppointmentsRoute
+  '/call-history': typeof AppCallHistoryRoute
   '/dashboard': typeof AppDashboardRoute
   '/emergency': typeof AppEmergencyRoute
   '/family': typeof AppFamilyRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/ai': typeof AppAiRoute
   '/analytics': typeof AppAnalyticsRoute
   '/appointments': typeof AppAppointmentsRoute
+  '/call-history': typeof AppCallHistoryRoute
   '/dashboard': typeof AppDashboardRoute
   '/emergency': typeof AppEmergencyRoute
   '/family': typeof AppFamilyRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/_app/ai': typeof AppAiRoute
   '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/appointments': typeof AppAppointmentsRoute
+  '/_app/call-history': typeof AppCallHistoryRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/emergency': typeof AppEmergencyRoute
   '/_app/family': typeof AppFamilyRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/ai'
     | '/analytics'
     | '/appointments'
+    | '/call-history'
     | '/dashboard'
     | '/emergency'
     | '/family'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/ai'
     | '/analytics'
     | '/appointments'
+    | '/call-history'
     | '/dashboard'
     | '/emergency'
     | '/family'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/_app/ai'
     | '/_app/analytics'
     | '/_app/appointments'
+    | '/_app/call-history'
     | '/_app/dashboard'
     | '/_app/emergency'
     | '/_app/family'
@@ -374,6 +386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/call-history': {
+      id: '/_app/call-history'
+      path: '/call-history'
+      fullPath: '/call-history'
+      preLoaderRoute: typeof AppCallHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/appointments': {
       id: '/_app/appointments'
       path: '/appointments'
@@ -402,6 +421,7 @@ interface AppRouteChildren {
   AppAiRoute: typeof AppAiRoute
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppAppointmentsRoute: typeof AppAppointmentsRoute
+  AppCallHistoryRoute: typeof AppCallHistoryRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppEmergencyRoute: typeof AppEmergencyRoute
   AppFamilyRoute: typeof AppFamilyRoute
@@ -417,6 +437,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAiRoute: AppAiRoute,
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppAppointmentsRoute: AppAppointmentsRoute,
+  AppCallHistoryRoute: AppCallHistoryRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppEmergencyRoute: AppEmergencyRoute,
   AppFamilyRoute: AppFamilyRoute,

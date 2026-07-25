@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Bot, Users, Pill, FileText, CalendarDays, Activity,
+  LayoutDashboard, Bot, Users, Pill, FileText, CalendarDays, Activity, PhoneCall,
   Brain, BarChart3, Siren, Bell, Settings, Heart,
 } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ const mainItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "AI Assistant", url: "/ai", icon: Bot },
   { title: "Family", url: "/family", icon: Users },
+  { title: "Call History", url: "/call-history", icon: PhoneCall },
   { title: "Medicines", url: "/medicines", icon: Pill },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Appointments", url: "/appointments", icon: CalendarDays },

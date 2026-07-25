@@ -14,7 +14,136 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          alert_type: Database["public"]["Enums"]["alert_type"]
+          created_at: string
+          family_member_id: string | null
+          id: string
+          message: string
+          priority: Database["public"]["Enums"]["alert_priority"]
+          read_at: string | null
+          receiver_id: string | null
+          sender_id: string
+          status: Database["public"]["Enums"]["alert_status"]
+        }
+        Insert: {
+          alert_type?: Database["public"]["Enums"]["alert_type"]
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          message: string
+          priority?: Database["public"]["Enums"]["alert_priority"]
+          read_at?: string | null
+          receiver_id?: string | null
+          sender_id: string
+          status?: Database["public"]["Enums"]["alert_status"]
+        }
+        Update: {
+          alert_type?: Database["public"]["Enums"]["alert_type"]
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          message?: string
+          priority?: Database["public"]["Enums"]["alert_priority"]
+          read_at?: string | null
+          receiver_id?: string | null
+          sender_id?: string
+          status?: Database["public"]["Enums"]["alert_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_logs: {
+        Row: {
+          call_status: Database["public"]["Enums"]["call_status"]
+          caller_id: string
+          created_at: string
+          family_member_id: string | null
+          id: string
+          phone_number: string
+        }
+        Insert: {
+          call_status?: Database["public"]["Enums"]["call_status"]
+          caller_id: string
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          phone_number: string
+        }
+        Update: {
+          call_status?: Database["public"]["Enums"]["call_status"]
+          caller_id?: string
+          created_at?: string
+          family_member_id?: string | null
+          id?: string
+          phone_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_members: {
+        Row: {
+          availability_status: Database["public"]["Enums"]["availability_status"]
+          created_at: string
+          email: string | null
+          id: string
+          is_emergency_contact: boolean
+          linked_user_id: string | null
+          name: string
+          notification_enabled: boolean
+          phone_number: string
+          profile_photo: string | null
+          relationship: Database["public"]["Enums"]["relationship_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          availability_status?: Database["public"]["Enums"]["availability_status"]
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_emergency_contact?: boolean
+          linked_user_id?: string | null
+          name: string
+          notification_enabled?: boolean
+          phone_number: string
+          profile_photo?: string | null
+          relationship?: Database["public"]["Enums"]["relationship_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          availability_status?: Database["public"]["Enums"]["availability_status"]
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_emergency_contact?: boolean
+          linked_user_id?: string | null
+          name?: string
+          notification_enabled?: boolean
+          phone_number?: string
+          profile_photo?: string | null
+          relationship?: Database["public"]["Enums"]["relationship_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +152,22 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      alert_priority: "low" | "normal" | "high" | "critical"
+      alert_status: "unread" | "read" | "dismissed"
+      alert_type: "normal" | "important" | "emergency" | "call_back_request"
+      availability_status: "available" | "busy" | "away" | "offline" | "dnd"
+      call_status: "initiated" | "missed" | "completed" | "busy" | "declined"
+      relationship_type:
+        | "father"
+        | "mother"
+        | "brother"
+        | "sister"
+        | "son"
+        | "daughter"
+        | "spouse"
+        | "guardian"
+        | "doctor"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +294,24 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      alert_priority: ["low", "normal", "high", "critical"],
+      alert_status: ["unread", "read", "dismissed"],
+      alert_type: ["normal", "important", "emergency", "call_back_request"],
+      availability_status: ["available", "busy", "away", "offline", "dnd"],
+      call_status: ["initiated", "missed", "completed", "busy", "declined"],
+      relationship_type: [
+        "father",
+        "mother",
+        "brother",
+        "sister",
+        "son",
+        "daughter",
+        "spouse",
+        "guardian",
+        "doctor",
+        "other",
+      ],
+    },
   },
 } as const
