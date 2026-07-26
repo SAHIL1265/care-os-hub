@@ -40,7 +40,7 @@ export function Topbar() {
       await queryClient.cancelQueries();
       queryClient.clear();
       // Clear cached AI conversation tied to the previous user session.
-      try { localStorage.removeItem("sahara:ai:messages"); } catch {}
+      try { localStorage.removeItem("sahara.ai.chat.v1"); } catch {}
       // Local-scope sign out clears only THIS device's session; the account
       // and password on the auth server are untouched.
       await supabase.auth.signOut({ scope: "local" });
