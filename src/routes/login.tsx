@@ -26,17 +26,20 @@ function Login() {
     if (!trimmed || !password) return;
     setLoading(true);
     try {
+      // Always start from a clean slate so a stale local session can never
+      // interfere with a fresh password verification against the auth server.
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
       const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
       if (error) {
-        const msg = error.message?.toLowerCase() ?? "";
-        if (msg.includes("invalid")) toast.error("Invalid email or password.");
-        else toast.error(error.message);
+        // Surface the real auth error verbatim rather than masking it.
+        toast.error(error.message || "Sign in failed. Please try again.");
         return;
       }
       toast.success("Welcome back!");
-      nav({ to: "/dashboard" });
+      nav({ to: "/dashboard", replace: true });
     } finally {
       setLoading(false);
+      setPassword("");
     }
   }
 

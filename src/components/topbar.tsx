@@ -17,10 +17,12 @@ import {
 import { useTheme } from "@/components/theme-provider";
 import { user } from "@/lib/demo-data";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function Topbar() {
   const { theme, toggleTheme } = useTheme();
   const nav = useNavigate();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,9 +34,23 @@ export function Topbar() {
   }, []);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    toast.success("Signed out");
-    nav({ to: "/login", replace: true });
+    try {
+      // Stop in-flight protected queries before the session is gone so we
+      // don't storm the cleared token with 401s or resurrect stale data.
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      // Clear cached AI conversation tied to the previous user session.
+      try { localStorage.removeItem("sahara.ai.chat.v1"); } catch {}
+      // Local-scope sign out clears only THIS device's session; the account
+      // and password on the auth server are untouched.
+      await supabase.auth.signOut({ scope: "local" });
+    } catch (err) {
+      console.error("Sign out error", err);
+    } finally {
+      setEmail(null);
+      toast.success("Signed out");
+      nav({ to: "/login", replace: true });
+    }
   }
 
   return (
