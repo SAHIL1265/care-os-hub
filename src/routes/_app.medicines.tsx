@@ -127,7 +127,7 @@ function Medicines() {
           scan_type: payload.scan_type,
           medicine_name: info.medicine_name || "Unknown medicine",
           raw_text: info.raw_text ?? null,
-          info: info as unknown as Record<string, unknown>,
+          info: info as unknown as never,
           confidence: typeof info.confidence === "number" ? info.confidence : null,
           language,
         }).select("id, scan_type, medicine_name, info, confidence, language, is_favorite, created_at").single();
