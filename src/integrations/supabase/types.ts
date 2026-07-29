@@ -144,6 +144,48 @@ export type Database = {
         }
         Relationships: []
       }
+      medicine_scans: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          id: string
+          info: Json
+          is_favorite: boolean
+          language: string
+          medicine_name: string
+          raw_text: string | null
+          scan_type: Database["public"]["Enums"]["medicine_scan_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          info?: Json
+          is_favorite?: boolean
+          language?: string
+          medicine_name?: string
+          raw_text?: string | null
+          scan_type?: Database["public"]["Enums"]["medicine_scan_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          info?: Json
+          is_favorite?: boolean
+          language?: string
+          medicine_name?: string
+          raw_text?: string | null
+          scan_type?: Database["public"]["Enums"]["medicine_scan_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -157,6 +199,7 @@ export type Database = {
       alert_type: "normal" | "important" | "emergency" | "call_back_request"
       availability_status: "available" | "busy" | "away" | "offline" | "dnd"
       call_status: "initiated" | "missed" | "completed" | "busy" | "declined"
+      medicine_scan_type: "camera" | "barcode" | "qr"
       relationship_type:
         | "father"
         | "mother"
@@ -300,6 +343,7 @@ export const Constants = {
       alert_type: ["normal", "important", "emergency", "call_back_request"],
       availability_status: ["available", "busy", "away", "offline", "dnd"],
       call_status: ["initiated", "missed", "completed", "busy", "declined"],
+      medicine_scan_type: ["camera", "barcode", "qr"],
       relationship_type: [
         "father",
         "mother",
