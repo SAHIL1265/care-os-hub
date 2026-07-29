@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotRouteImport } from './routes/forgot'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiScanMedicineRouteImport } from './routes/api/scan-medicine'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AppWellnessRouteImport } from './routes/_app.wellness'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
@@ -57,6 +58,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiScanMedicineRoute = ApiScanMedicineRouteImport.update({
+  id: '/api/scan-medicine',
+  path: '/api/scan-medicine',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/wellness': typeof AppWellnessRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/scan-medicine': typeof ApiScanMedicineRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/wellness': typeof AppWellnessRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/scan-medicine': typeof ApiScanMedicineRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/wellness': typeof AppWellnessRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/scan-medicine': typeof ApiScanMedicineRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wellness'
     | '/api/chat'
+    | '/api/scan-medicine'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wellness'
     | '/api/chat'
+    | '/api/scan-medicine'
   id:
     | '__root__'
     | '/'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/wellness'
     | '/api/chat'
+    | '/api/scan-medicine'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -270,6 +282,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiScanMedicineRoute: typeof ApiScanMedicineRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -314,6 +327,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/scan-medicine': {
+      id: '/api/scan-medicine'
+      path: '/api/scan-medicine'
+      fullPath: '/api/scan-medicine'
+      preLoaderRoute: typeof ApiScanMedicineRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -459,6 +479,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiScanMedicineRoute: ApiScanMedicineRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
