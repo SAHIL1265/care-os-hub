@@ -144,6 +144,89 @@ export type Database = {
         }
         Relationships: []
       }
+      medical_reports: {
+        Row: {
+          ai_summary: string | null
+          analysis: Json
+          chat: Json
+          created_at: string
+          doctor_questions: Json
+          error_message: string | null
+          extracted_text: string | null
+          family_member_id: string | null
+          file_name: string
+          file_path: string | null
+          file_type: string
+          id: string
+          important_findings: Json
+          ocr_confidence: number | null
+          patient_label: string
+          processing_status: Database["public"]["Enums"]["report_status"]
+          report_type: string
+          simple_explanation: string | null
+          source: string
+          structured_results: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          analysis?: Json
+          chat?: Json
+          created_at?: string
+          doctor_questions?: Json
+          error_message?: string | null
+          extracted_text?: string | null
+          family_member_id?: string | null
+          file_name: string
+          file_path?: string | null
+          file_type?: string
+          id?: string
+          important_findings?: Json
+          ocr_confidence?: number | null
+          patient_label?: string
+          processing_status?: Database["public"]["Enums"]["report_status"]
+          report_type?: string
+          simple_explanation?: string | null
+          source?: string
+          structured_results?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_summary?: string | null
+          analysis?: Json
+          chat?: Json
+          created_at?: string
+          doctor_questions?: Json
+          error_message?: string | null
+          extracted_text?: string | null
+          family_member_id?: string | null
+          file_name?: string
+          file_path?: string | null
+          file_type?: string
+          id?: string
+          important_findings?: Json
+          ocr_confidence?: number | null
+          patient_label?: string
+          processing_status?: Database["public"]["Enums"]["report_status"]
+          report_type?: string
+          simple_explanation?: string | null
+          source?: string
+          structured_results?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_reports_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medicine_scans: {
         Row: {
           confidence: number | null
@@ -211,6 +294,7 @@ export type Database = {
         | "guardian"
         | "doctor"
         | "other"
+      report_status: "uploading" | "processing" | "complete" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -356,6 +440,7 @@ export const Constants = {
         "doctor",
         "other",
       ],
+      report_status: ["uploading", "processing", "complete", "failed"],
     },
   },
 } as const

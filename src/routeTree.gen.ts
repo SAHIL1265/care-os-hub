@@ -16,7 +16,9 @@ import { Route as ForgotRouteImport } from './routes/forgot'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiScanMedicineRouteImport } from './routes/api/scan-medicine'
+import { Route as ApiReportChatRouteImport } from './routes/api/report-chat'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiAnalyzeReportRouteImport } from './routes/api/analyze-report'
 import { Route as AppWellnessRouteImport } from './routes/_app.wellness'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
@@ -30,6 +32,8 @@ import { Route as AppCallHistoryRouteImport } from './routes/_app.call-history'
 import { Route as AppAppointmentsRouteImport } from './routes/_app.appointments'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as AppAiRouteImport } from './routes/_app.ai'
+import { Route as AppReportsIndexRouteImport } from './routes/_app.reports.index'
+import { Route as AppReportsReportIdRouteImport } from './routes/_app.reports.$reportId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -65,9 +69,19 @@ const ApiScanMedicineRoute = ApiScanMedicineRouteImport.update({
   path: '/api/scan-medicine',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiReportChatRoute = ApiReportChatRouteImport.update({
+  id: '/api/report-chat',
+  path: '/api/report-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnalyzeReportRoute = ApiAnalyzeReportRouteImport.update({
+  id: '/api/analyze-report',
+  path: '/api/analyze-report',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppWellnessRoute = AppWellnessRouteImport.update({
@@ -135,6 +149,16 @@ const AppAiRoute = AppAiRouteImport.update({
   path: '/ai',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppReportsRoute,
+} as any)
+const AppReportsReportIdRoute = AppReportsReportIdRouteImport.update({
+  id: '/$reportId',
+  path: '/$reportId',
+  getParentRoute: () => AppReportsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -152,11 +176,15 @@ export interface FileRoutesByFullPath {
   '/fitness': typeof AppFitnessRoute
   '/medicines': typeof AppMedicinesRoute
   '/notifications': typeof AppNotificationsRoute
-  '/reports': typeof AppReportsRoute
+  '/reports': typeof AppReportsRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/wellness': typeof AppWellnessRoute
+  '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
+  '/reports/$reportId': typeof AppReportsReportIdRoute
+  '/reports/': typeof AppReportsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -174,11 +202,14 @@ export interface FileRoutesByTo {
   '/fitness': typeof AppFitnessRoute
   '/medicines': typeof AppMedicinesRoute
   '/notifications': typeof AppNotificationsRoute
-  '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/wellness': typeof AppWellnessRoute
+  '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
+  '/reports/$reportId': typeof AppReportsReportIdRoute
+  '/reports': typeof AppReportsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -198,11 +229,15 @@ export interface FileRoutesById {
   '/_app/fitness': typeof AppFitnessRoute
   '/_app/medicines': typeof AppMedicinesRoute
   '/_app/notifications': typeof AppNotificationsRoute
-  '/_app/reports': typeof AppReportsRoute
+  '/_app/reports': typeof AppReportsRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
   '/_app/wellness': typeof AppWellnessRoute
+  '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
+  '/_app/reports/$reportId': typeof AppReportsReportIdRoute
+  '/_app/reports/': typeof AppReportsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -225,8 +260,12 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/wellness'
+    | '/api/analyze-report'
     | '/api/chat'
+    | '/api/report-chat'
     | '/api/scan-medicine'
+    | '/reports/$reportId'
+    | '/reports/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -244,11 +283,14 @@ export interface FileRouteTypes {
     | '/fitness'
     | '/medicines'
     | '/notifications'
-    | '/reports'
     | '/settings'
     | '/wellness'
+    | '/api/analyze-report'
     | '/api/chat'
+    | '/api/report-chat'
     | '/api/scan-medicine'
+    | '/reports/$reportId'
+    | '/reports'
   id:
     | '__root__'
     | '/'
@@ -270,8 +312,12 @@ export interface FileRouteTypes {
     | '/_app/reports'
     | '/_app/settings'
     | '/_app/wellness'
+    | '/api/analyze-report'
     | '/api/chat'
+    | '/api/report-chat'
     | '/api/scan-medicine'
+    | '/_app/reports/$reportId'
+    | '/_app/reports/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -281,7 +327,9 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  ApiAnalyzeReportRoute: typeof ApiAnalyzeReportRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiReportChatRoute: typeof ApiReportChatRoute
   ApiScanMedicineRoute: typeof ApiScanMedicineRoute
 }
 
@@ -336,11 +384,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiScanMedicineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/report-chat': {
+      id: '/api/report-chat'
+      path: '/api/report-chat'
+      fullPath: '/api/report-chat'
+      preLoaderRoute: typeof ApiReportChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
       fullPath: '/api/chat'
       preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/analyze-report': {
+      id: '/api/analyze-report'
+      path: '/api/analyze-report'
+      fullPath: '/api/analyze-report'
+      preLoaderRoute: typeof ApiAnalyzeReportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/wellness': {
@@ -434,8 +496,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAiRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports/': {
+      id: '/_app/reports/'
+      path: '/'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof AppReportsIndexRouteImport
+      parentRoute: typeof AppReportsRoute
+    }
+    '/_app/reports/$reportId': {
+      id: '/_app/reports/$reportId'
+      path: '/$reportId'
+      fullPath: '/reports/$reportId'
+      preLoaderRoute: typeof AppReportsReportIdRouteImport
+      parentRoute: typeof AppReportsRoute
+    }
   }
 }
+
+interface AppReportsRouteChildren {
+  AppReportsReportIdRoute: typeof AppReportsReportIdRoute
+  AppReportsIndexRoute: typeof AppReportsIndexRoute
+}
+
+const AppReportsRouteChildren: AppReportsRouteChildren = {
+  AppReportsReportIdRoute: AppReportsReportIdRoute,
+  AppReportsIndexRoute: AppReportsIndexRoute,
+}
+
+const AppReportsRouteWithChildren = AppReportsRoute._addFileChildren(
+  AppReportsRouteChildren,
+)
 
 interface AppRouteChildren {
   AppAiRoute: typeof AppAiRoute
@@ -448,7 +538,7 @@ interface AppRouteChildren {
   AppFitnessRoute: typeof AppFitnessRoute
   AppMedicinesRoute: typeof AppMedicinesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
-  AppReportsRoute: typeof AppReportsRoute
+  AppReportsRoute: typeof AppReportsRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
   AppWellnessRoute: typeof AppWellnessRoute
 }
@@ -464,7 +554,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFitnessRoute: AppFitnessRoute,
   AppMedicinesRoute: AppMedicinesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
-  AppReportsRoute: AppReportsRoute,
+  AppReportsRoute: AppReportsRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
   AppWellnessRoute: AppWellnessRoute,
 }
@@ -478,7 +568,9 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  ApiAnalyzeReportRoute: ApiAnalyzeReportRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiReportChatRoute: ApiReportChatRoute,
   ApiScanMedicineRoute: ApiScanMedicineRoute,
 }
 export const routeTree = rootRouteImport
