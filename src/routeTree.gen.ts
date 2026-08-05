@@ -33,6 +33,7 @@ import { Route as AppAppointmentsRouteImport } from './routes/_app.appointments'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as AppAiRouteImport } from './routes/_app.ai'
 import { Route as AppReportsIndexRouteImport } from './routes/_app.reports.index'
+import { Route as AppReportsReportIdRouteImport } from './routes/_app.reports.$reportId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -153,6 +154,11 @@ const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppReportsRoute,
 } as any)
+const AppReportsReportIdRoute = AppReportsReportIdRouteImport.update({
+  id: '/$reportId',
+  path: '/$reportId',
+  getParentRoute: () => AppReportsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
+  '/reports/$reportId': typeof AppReportsReportIdRoute
   '/reports/': typeof AppReportsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -201,6 +208,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
+  '/reports/$reportId': typeof AppReportsReportIdRoute
   '/reports': typeof AppReportsIndexRoute
 }
 export interface FileRoutesById {
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
+  '/_app/reports/$reportId': typeof AppReportsReportIdRoute
   '/_app/reports/': typeof AppReportsIndexRoute
 }
 export interface FileRouteTypes {
@@ -255,6 +264,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/report-chat'
     | '/api/scan-medicine'
+    | '/reports/$reportId'
     | '/reports/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -279,6 +289,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/report-chat'
     | '/api/scan-medicine'
+    | '/reports/$reportId'
     | '/reports'
   id:
     | '__root__'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/report-chat'
     | '/api/scan-medicine'
+    | '/_app/reports/$reportId'
     | '/_app/reports/'
   fileRoutesById: FileRoutesById
 }
@@ -491,14 +503,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportsIndexRouteImport
       parentRoute: typeof AppReportsRoute
     }
+    '/_app/reports/$reportId': {
+      id: '/_app/reports/$reportId'
+      path: '/$reportId'
+      fullPath: '/reports/$reportId'
+      preLoaderRoute: typeof AppReportsReportIdRouteImport
+      parentRoute: typeof AppReportsRoute
+    }
   }
 }
 
 interface AppReportsRouteChildren {
+  AppReportsReportIdRoute: typeof AppReportsReportIdRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
 }
 
 const AppReportsRouteChildren: AppReportsRouteChildren = {
+  AppReportsReportIdRoute: AppReportsReportIdRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
 }
 
