@@ -16,7 +16,9 @@ import { Route as ForgotRouteImport } from './routes/forgot'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiScanMedicineRouteImport } from './routes/api/scan-medicine'
+import { Route as ApiReportChatRouteImport } from './routes/api/report-chat'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiAnalyzeReportRouteImport } from './routes/api/analyze-report'
 import { Route as AppWellnessRouteImport } from './routes/_app.wellness'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
@@ -65,9 +67,19 @@ const ApiScanMedicineRoute = ApiScanMedicineRouteImport.update({
   path: '/api/scan-medicine',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiReportChatRoute = ApiReportChatRouteImport.update({
+  id: '/api/report-chat',
+  path: '/api/report-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnalyzeReportRoute = ApiAnalyzeReportRouteImport.update({
+  id: '/api/analyze-report',
+  path: '/api/analyze-report',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppWellnessRoute = AppWellnessRouteImport.update({
@@ -155,7 +167,9 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/wellness': typeof AppWellnessRoute
+  '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
 }
 export interface FileRoutesByTo {
@@ -177,7 +191,9 @@ export interface FileRoutesByTo {
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/wellness': typeof AppWellnessRoute
+  '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
 }
 export interface FileRoutesById {
@@ -201,7 +217,9 @@ export interface FileRoutesById {
   '/_app/reports': typeof AppReportsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/wellness': typeof AppWellnessRoute
+  '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
 }
 export interface FileRouteTypes {
@@ -225,7 +243,9 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/wellness'
+    | '/api/analyze-report'
     | '/api/chat'
+    | '/api/report-chat'
     | '/api/scan-medicine'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -247,7 +267,9 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/wellness'
+    | '/api/analyze-report'
     | '/api/chat'
+    | '/api/report-chat'
     | '/api/scan-medicine'
   id:
     | '__root__'
@@ -270,7 +292,9 @@ export interface FileRouteTypes {
     | '/_app/reports'
     | '/_app/settings'
     | '/_app/wellness'
+    | '/api/analyze-report'
     | '/api/chat'
+    | '/api/report-chat'
     | '/api/scan-medicine'
   fileRoutesById: FileRoutesById
 }
@@ -281,7 +305,9 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  ApiAnalyzeReportRoute: typeof ApiAnalyzeReportRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiReportChatRoute: typeof ApiReportChatRoute
   ApiScanMedicineRoute: typeof ApiScanMedicineRoute
 }
 
@@ -336,11 +362,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiScanMedicineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/report-chat': {
+      id: '/api/report-chat'
+      path: '/api/report-chat'
+      fullPath: '/api/report-chat'
+      preLoaderRoute: typeof ApiReportChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
       fullPath: '/api/chat'
       preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/analyze-report': {
+      id: '/api/analyze-report'
+      path: '/api/analyze-report'
+      fullPath: '/api/analyze-report'
+      preLoaderRoute: typeof ApiAnalyzeReportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/wellness': {
@@ -478,19 +518,11 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  ApiAnalyzeReportRoute: ApiAnalyzeReportRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiReportChatRoute: ApiReportChatRoute,
   ApiScanMedicineRoute: ApiScanMedicineRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
