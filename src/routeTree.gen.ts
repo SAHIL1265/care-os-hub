@@ -32,6 +32,7 @@ import { Route as AppCallHistoryRouteImport } from './routes/_app.call-history'
 import { Route as AppAppointmentsRouteImport } from './routes/_app.appointments'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as AppAiRouteImport } from './routes/_app.ai'
+import { Route as AppReportsIndexRouteImport } from './routes/_app.reports.index'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -147,6 +148,11 @@ const AppAiRoute = AppAiRouteImport.update({
   path: '/ai',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppReportsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -164,13 +170,14 @@ export interface FileRoutesByFullPath {
   '/fitness': typeof AppFitnessRoute
   '/medicines': typeof AppMedicinesRoute
   '/notifications': typeof AppNotificationsRoute
-  '/reports': typeof AppReportsRoute
+  '/reports': typeof AppReportsRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/wellness': typeof AppWellnessRoute
   '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
   '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
+  '/reports/': typeof AppReportsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -188,13 +195,13 @@ export interface FileRoutesByTo {
   '/fitness': typeof AppFitnessRoute
   '/medicines': typeof AppMedicinesRoute
   '/notifications': typeof AppNotificationsRoute
-  '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/wellness': typeof AppWellnessRoute
   '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
   '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
+  '/reports': typeof AppReportsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -214,13 +221,14 @@ export interface FileRoutesById {
   '/_app/fitness': typeof AppFitnessRoute
   '/_app/medicines': typeof AppMedicinesRoute
   '/_app/notifications': typeof AppNotificationsRoute
-  '/_app/reports': typeof AppReportsRoute
+  '/_app/reports': typeof AppReportsRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
   '/_app/wellness': typeof AppWellnessRoute
   '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
   '/api/report-chat': typeof ApiReportChatRoute
   '/api/scan-medicine': typeof ApiScanMedicineRoute
+  '/_app/reports/': typeof AppReportsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -247,6 +255,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/report-chat'
     | '/api/scan-medicine'
+    | '/reports/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -264,13 +273,13 @@ export interface FileRouteTypes {
     | '/fitness'
     | '/medicines'
     | '/notifications'
-    | '/reports'
     | '/settings'
     | '/wellness'
     | '/api/analyze-report'
     | '/api/chat'
     | '/api/report-chat'
     | '/api/scan-medicine'
+    | '/reports'
   id:
     | '__root__'
     | '/'
@@ -296,6 +305,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/report-chat'
     | '/api/scan-medicine'
+    | '/_app/reports/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -474,8 +484,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAiRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports/': {
+      id: '/_app/reports/'
+      path: '/'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof AppReportsIndexRouteImport
+      parentRoute: typeof AppReportsRoute
+    }
   }
 }
+
+interface AppReportsRouteChildren {
+  AppReportsIndexRoute: typeof AppReportsIndexRoute
+}
+
+const AppReportsRouteChildren: AppReportsRouteChildren = {
+  AppReportsIndexRoute: AppReportsIndexRoute,
+}
+
+const AppReportsRouteWithChildren = AppReportsRoute._addFileChildren(
+  AppReportsRouteChildren,
+)
 
 interface AppRouteChildren {
   AppAiRoute: typeof AppAiRoute
@@ -488,7 +517,7 @@ interface AppRouteChildren {
   AppFitnessRoute: typeof AppFitnessRoute
   AppMedicinesRoute: typeof AppMedicinesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
-  AppReportsRoute: typeof AppReportsRoute
+  AppReportsRoute: typeof AppReportsRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
   AppWellnessRoute: typeof AppWellnessRoute
 }
@@ -504,7 +533,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFitnessRoute: AppFitnessRoute,
   AppMedicinesRoute: AppMedicinesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
-  AppReportsRoute: AppReportsRoute,
+  AppReportsRoute: AppReportsRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
   AppWellnessRoute: AppWellnessRoute,
 }
