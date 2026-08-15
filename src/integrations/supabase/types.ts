@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_booking_calls: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          ended_at: string | null
+          error_message: string | null
+          id: string
+          outcome: string | null
+          phone_number: string
+          provider_call_sid: string | null
+          started_at: string
+          status: Database["public"]["Enums"]["ai_call_status"]
+          summary: Json
+          telephony_provider: string
+          transcript: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          ended_at?: string | null
+          error_message?: string | null
+          id?: string
+          outcome?: string | null
+          phone_number: string
+          provider_call_sid?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["ai_call_status"]
+          summary?: Json
+          telephony_provider?: string
+          transcript?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          ended_at?: string | null
+          error_message?: string | null
+          id?: string
+          outcome?: string | null
+          phone_number?: string
+          provider_call_sid?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["ai_call_status"]
+          summary?: Json
+          telephony_provider?: string
+          transcript?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_booking_calls_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alerts: {
         Row: {
           alert_type: Database["public"]["Enums"]["alert_type"]
@@ -54,6 +116,145 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "alerts_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_reminders: {
+        Row: {
+          appointment_id: string
+          channel: Database["public"]["Enums"]["reminder_channel"]
+          created_at: string
+          id: string
+          message: string
+          offset_minutes: number
+          remind_at: string
+          sent_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id: string
+          channel?: Database["public"]["Enums"]["reminder_channel"]
+          created_at?: string
+          id?: string
+          message: string
+          offset_minutes?: number
+          remind_at: string
+          sent_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string
+          channel?: Database["public"]["Enums"]["reminder_channel"]
+          created_at?: string
+          id?: string
+          message?: string
+          offset_minutes?: number
+          remind_at?: string
+          sent_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_reminders_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointments: {
+        Row: {
+          booking_source: Database["public"]["Enums"]["appointment_booking_source"]
+          confirmed_date: string | null
+          confirmed_time: string | null
+          consultation_fee: string | null
+          contact_number: string
+          created_at: string
+          department: string | null
+          doctor_name: string | null
+          family_member_id: string | null
+          id: string
+          location: string | null
+          notes: string | null
+          patient_contact: string | null
+          patient_name: string | null
+          preferred_date: string | null
+          preferred_time: string | null
+          provider_name: string
+          provider_type: Database["public"]["Enums"]["appointment_provider_type"]
+          reason: string | null
+          share_patient_contact: boolean
+          special_instructions: string | null
+          status: Database["public"]["Enums"]["appointment_status"]
+          token_number: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_source?: Database["public"]["Enums"]["appointment_booking_source"]
+          confirmed_date?: string | null
+          confirmed_time?: string | null
+          consultation_fee?: string | null
+          contact_number: string
+          created_at?: string
+          department?: string | null
+          doctor_name?: string | null
+          family_member_id?: string | null
+          id?: string
+          location?: string | null
+          notes?: string | null
+          patient_contact?: string | null
+          patient_name?: string | null
+          preferred_date?: string | null
+          preferred_time?: string | null
+          provider_name: string
+          provider_type?: Database["public"]["Enums"]["appointment_provider_type"]
+          reason?: string | null
+          share_patient_contact?: boolean
+          special_instructions?: string | null
+          status?: Database["public"]["Enums"]["appointment_status"]
+          token_number?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_source?: Database["public"]["Enums"]["appointment_booking_source"]
+          confirmed_date?: string | null
+          confirmed_time?: string | null
+          consultation_fee?: string | null
+          contact_number?: string
+          created_at?: string
+          department?: string | null
+          doctor_name?: string | null
+          family_member_id?: string | null
+          id?: string
+          location?: string | null
+          notes?: string | null
+          patient_contact?: string | null
+          patient_name?: string | null
+          preferred_date?: string | null
+          preferred_time?: string | null
+          provider_name?: string
+          provider_type?: Database["public"]["Enums"]["appointment_provider_type"]
+          reason?: string | null
+          share_patient_contact?: boolean
+          special_instructions?: string | null
+          status?: Database["public"]["Enums"]["appointment_status"]
+          token_number?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_family_member_id_fkey"
             columns: ["family_member_id"]
             isOneToOne: false
             referencedRelation: "family_members"
@@ -277,9 +478,25 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      ai_call_status:
+        | "pending"
+        | "dialing"
+        | "in_progress"
+        | "completed"
+        | "failed"
+        | "cancelled"
       alert_priority: "low" | "normal" | "high" | "critical"
       alert_status: "unread" | "read" | "dismissed"
       alert_type: "normal" | "important" | "emergency" | "call_back_request"
+      appointment_booking_source: "manual" | "ai" | "direct_call"
+      appointment_provider_type: "doctor" | "hospital" | "clinic"
+      appointment_status:
+        | "pending"
+        | "confirmed"
+        | "today"
+        | "completed"
+        | "cancelled"
+        | "failed"
       availability_status: "available" | "busy" | "away" | "offline" | "dnd"
       call_status: "initiated" | "missed" | "completed" | "busy" | "declined"
       medicine_scan_type: "camera" | "barcode" | "qr"
@@ -294,6 +511,7 @@ export type Database = {
         | "guardian"
         | "doctor"
         | "other"
+      reminder_channel: "in_app" | "sms"
       report_status: "uploading" | "processing" | "complete" | "failed"
     }
     CompositeTypes: {
@@ -422,9 +640,27 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      ai_call_status: [
+        "pending",
+        "dialing",
+        "in_progress",
+        "completed",
+        "failed",
+        "cancelled",
+      ],
       alert_priority: ["low", "normal", "high", "critical"],
       alert_status: ["unread", "read", "dismissed"],
       alert_type: ["normal", "important", "emergency", "call_back_request"],
+      appointment_booking_source: ["manual", "ai", "direct_call"],
+      appointment_provider_type: ["doctor", "hospital", "clinic"],
+      appointment_status: [
+        "pending",
+        "confirmed",
+        "today",
+        "completed",
+        "cancelled",
+        "failed",
+      ],
       availability_status: ["available", "busy", "away", "offline", "dnd"],
       call_status: ["initiated", "missed", "completed", "busy", "declined"],
       medicine_scan_type: ["camera", "barcode", "qr"],
@@ -440,6 +676,7 @@ export const Constants = {
         "doctor",
         "other",
       ],
+      reminder_channel: ["in_app", "sms"],
       report_status: ["uploading", "processing", "complete", "failed"],
     },
   },
