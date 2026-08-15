@@ -169,7 +169,7 @@ function ReportsPage() {
       setPending(null);
       setStep(-1);
       toast.success("Analysis complete");
-      nav({ to: "/reports/$reportId", params: { reportId: insert.data.id }, search: mode === "ai" ? { ask: true } : undefined });
+      nav({ to: "/reports/$reportId", params: { reportId: insert.data.id }, search: { ask: mode === "ai" ? true : undefined } });
     } catch (err) {
       setStep(-1);
       setFailure(err instanceof Error ? err.message : "We couldn't analyze this report right now. Please try again.");
@@ -263,7 +263,7 @@ function ReportsPage() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/reports/$reportId" params={{ reportId: r.id }}>View analysis</Link>
+                  <Link to="/reports/$reportId" params={{ reportId: r.id }} search={{ ask: undefined }}>View analysis</Link>
                 </Button>
                 <Button asChild size="sm" className="gap-1.5">
                   <Link to="/reports/$reportId" params={{ reportId: r.id }} search={{ ask: true }}>
