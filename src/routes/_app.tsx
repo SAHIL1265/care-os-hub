@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Topbar } from "@/components/topbar";
 import { SosFab } from "@/components/sos-fab";
+import { ReminderWatcher } from "@/components/reminder-watcher";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_app")({
@@ -27,6 +28,7 @@ function AppLayout() {
             <Outlet />
           </main>
           <SosFab />
+          <ReminderWatcher />
         </SidebarInset>
       </div>
     </SidebarProvider>
