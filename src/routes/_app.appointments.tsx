@@ -475,7 +475,7 @@ function AiCallDialog({ callId, appointment, live, onClose }: { callId: string; 
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o && status === "done") onClose(); }}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl" showCloseButton={status === "done"}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-emerald" />AI Appointment Call</DialogTitle>
           <DialogDescription>
