@@ -44,7 +44,7 @@ export const Route = createFileRoute("/_app/appointments")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: AppointmentsPage;
+  component: AppointmentsPage,
 });
 
 type FormState = {
