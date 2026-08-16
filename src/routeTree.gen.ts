@@ -34,6 +34,7 @@ import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as AppAiRouteImport } from './routes/_app.ai'
 import { Route as AppReportsIndexRouteImport } from './routes/_app.reports.index'
 import { Route as AppReportsReportIdRouteImport } from './routes/_app.reports.$reportId'
+import { Route as ApiPublicAiCallCallIdRouteImport } from './routes/api/public/ai-call.$callId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -159,6 +160,11 @@ const AppReportsReportIdRoute = AppReportsReportIdRouteImport.update({
   path: '/$reportId',
   getParentRoute: () => AppReportsRoute,
 } as any)
+const ApiPublicAiCallCallIdRoute = ApiPublicAiCallCallIdRouteImport.update({
+  id: '/api/public/ai-call/$callId',
+  path: '/api/public/ai-call/$callId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/api/scan-medicine': typeof ApiScanMedicineRoute
   '/reports/$reportId': typeof AppReportsReportIdRoute
   '/reports/': typeof AppReportsIndexRoute
+  '/api/public/ai-call/$callId': typeof ApiPublicAiCallCallIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -210,6 +217,7 @@ export interface FileRoutesByTo {
   '/api/scan-medicine': typeof ApiScanMedicineRoute
   '/reports/$reportId': typeof AppReportsReportIdRoute
   '/reports': typeof AppReportsIndexRoute
+  '/api/public/ai-call/$callId': typeof ApiPublicAiCallCallIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -238,6 +246,7 @@ export interface FileRoutesById {
   '/api/scan-medicine': typeof ApiScanMedicineRoute
   '/_app/reports/$reportId': typeof AppReportsReportIdRoute
   '/_app/reports/': typeof AppReportsIndexRoute
+  '/api/public/ai-call/$callId': typeof ApiPublicAiCallCallIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -266,6 +275,7 @@ export interface FileRouteTypes {
     | '/api/scan-medicine'
     | '/reports/$reportId'
     | '/reports/'
+    | '/api/public/ai-call/$callId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -291,6 +301,7 @@ export interface FileRouteTypes {
     | '/api/scan-medicine'
     | '/reports/$reportId'
     | '/reports'
+    | '/api/public/ai-call/$callId'
   id:
     | '__root__'
     | '/'
@@ -318,6 +329,7 @@ export interface FileRouteTypes {
     | '/api/scan-medicine'
     | '/_app/reports/$reportId'
     | '/_app/reports/'
+    | '/api/public/ai-call/$callId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -331,6 +343,7 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   ApiReportChatRoute: typeof ApiReportChatRoute
   ApiScanMedicineRoute: typeof ApiScanMedicineRoute
+  ApiPublicAiCallCallIdRoute: typeof ApiPublicAiCallCallIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -510,6 +523,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportsReportIdRouteImport
       parentRoute: typeof AppReportsRoute
     }
+    '/api/public/ai-call/$callId': {
+      id: '/api/public/ai-call/$callId'
+      path: '/api/public/ai-call/$callId'
+      fullPath: '/api/public/ai-call/$callId'
+      preLoaderRoute: typeof ApiPublicAiCallCallIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -572,6 +592,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   ApiReportChatRoute: ApiReportChatRoute,
   ApiScanMedicineRoute: ApiScanMedicineRoute,
+  ApiPublicAiCallCallIdRoute: ApiPublicAiCallCallIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
