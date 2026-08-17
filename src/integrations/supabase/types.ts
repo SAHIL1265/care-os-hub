@@ -470,6 +470,93 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          age: number | null
+          avatar_path: string | null
+          blood_group: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          language: string
+          updated_at: string
+        }
+        Insert: {
+          age?: number | null
+          avatar_path?: string | null
+          blood_group?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          language?: string
+          updated_at?: string
+        }
+        Update: {
+          age?: number | null
+          avatar_path?: string | null
+          blood_group?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          language?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_devices: {
+        Row: {
+          battery_level: number | null
+          created_at: string
+          device_key: string | null
+          device_type: string
+          id: string
+          last_connected_at: string | null
+          name: string
+          notifications_enabled: boolean
+          status: string
+          supports_notifications: boolean
+          transport: string
+          updated_at: string
+          user_id: string
+          vendor: string | null
+        }
+        Insert: {
+          battery_level?: number | null
+          created_at?: string
+          device_key?: string | null
+          device_type?: string
+          id?: string
+          last_connected_at?: string | null
+          name: string
+          notifications_enabled?: boolean
+          status?: string
+          supports_notifications?: boolean
+          transport?: string
+          updated_at?: string
+          user_id: string
+          vendor?: string | null
+        }
+        Update: {
+          battery_level?: number | null
+          created_at?: string
+          device_key?: string | null
+          device_type?: string
+          id?: string
+          last_connected_at?: string | null
+          name?: string
+          notifications_enabled?: boolean
+          status?: string
+          supports_notifications?: boolean
+          transport?: string
+          updated_at?: string
+          user_id?: string
+          vendor?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
