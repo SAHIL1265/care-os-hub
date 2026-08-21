@@ -417,15 +417,6 @@ FINAL GOAL
 
 Generate a complete production-ready healthcare operating system with premium UI/UX, smooth animations, responsive layouts, reusable components, and clean code. The application should feel like a real SaaS healthcare platform suitable for a final-year engineering project and portfolio.
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/9c8c5fe7-ac28-4e66-b2e2-f776605d2ba4).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
