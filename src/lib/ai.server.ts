@@ -1,9 +1,17 @@
 /**
  * Native Google Gemini API client helper for CareOS AI / Sahara Health OS.
- * Connects directly to Google Generative Language API using GEMINI_API_KEY.
+ * Includes automatic model fallback and exponential retry for 503 / 429 high-demand spikes.
  */
 
-export const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
+export const FALLBACK_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-flash-lite",
+  "gemini-flash-lite-latest",
+  "gemini-2.5-pro",
+];
+
+export const DEFAULT_GEMINI_MODEL = FALLBACK_MODELS[0];
 
 export function getGeminiApiKey(): string | null {
   const metaEnv = (import.meta as unknown as { env?: Record<string, string> })?.env;
@@ -34,6 +42,10 @@ interface GeminiJsonOptions {
   userContent?: string | Array<Record<string, unknown>>;
   model?: string;
   temperature?: number;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -94,7 +106,7 @@ function convertMessagesToGemini(messages: ChatMessage[], explicitSystem?: strin
 }
 
 /**
- * Streams chat completions from Google Gemini streamGenerateContent endpoint.
+ * Streams chat completions from Google Gemini with automatic model fallback on 503/429.
  */
 export async function streamGeminiChat({
   messages,
@@ -121,78 +133,91 @@ export async function streamGeminiChat({
     payload.systemInstruction = { parts: [{ text: systemText }] };
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${key}`;
+  const modelsToTry = [model, ...FALLBACK_MODELS.filter((m) => m !== model)];
+  let lastErrorText = "";
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  } catch (err) {
-    return new Response(
-      `Failed to connect to Google Gemini API: ${err instanceof Error ? err.message : String(err)}`,
-      { status: 502 }
-    );
-  }
+  for (const candidateModel of modelsToTry) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:streamGenerateContent?alt=sse&key=${key}`;
 
-  if (!upstream.ok || !upstream.body) {
-    const text = await upstream.text().catch(() => "");
-    if (upstream.status === 429) {
-      return new Response("Google Gemini rate limit reached. Please wait a few moments and try again.", { status: 429 });
-    }
-    return new Response(`Gemini API Error (${upstream.status}): ${text.slice(0, 300)}`, { status: upstream.status || 500 });
-  }
-
-  // Parse Gemini SSE stream chunks
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const reader = upstream.body!.getReader();
-      let buf = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split("\n");
-          buf = lines.pop() ?? "";
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith("data:")) continue;
-            const dataStr = trimmed.slice(5).trim();
-            if (!dataStr) continue;
-            try {
-              const parsed = JSON.parse(dataStr);
-              const textChunk: string | undefined = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (textChunk) {
-                controller.enqueue(encoder.encode(textChunk));
-              }
-            } catch {
-              /* ignore partial line */
-            }
-          }
-        }
-      } catch (err) {
-        controller.error(err);
-        return;
-      }
-      controller.close();
-    },
-  });
+        const upstream = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-    },
-  });
+        if (upstream.ok && upstream.body) {
+          // Stream successfully established
+          const encoder = new TextEncoder();
+          const decoder = new TextDecoder();
+          const stream = new ReadableStream<Uint8Array>({
+            async start(controller) {
+              const reader = upstream.body!.getReader();
+              let buf = "";
+              try {
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  buf += decoder.decode(value, { stream: true });
+                  const lines = buf.split("\n");
+                  buf = lines.pop() ?? "";
+                  for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith("data:")) continue;
+                    const dataStr = trimmed.slice(5).trim();
+                    if (!dataStr) continue;
+                    try {
+                      const parsed = JSON.parse(dataStr);
+                      const textChunk: string | undefined = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+                      if (textChunk) {
+                        controller.enqueue(encoder.encode(textChunk));
+                      }
+                    } catch {
+                      /* ignore partial json */
+                    }
+                  }
+                }
+              } catch (err) {
+                controller.error(err);
+                return;
+              }
+              controller.close();
+            },
+          });
+
+          return new Response(stream, {
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+              "Cache-Control": "no-cache, no-transform",
+            },
+          });
+        }
+
+        lastErrorText = await upstream.text().catch(() => "");
+        // If 503 (High Demand) or 429 (Rate Limit), wait briefly and retry or try next fallback model
+        if (upstream.status === 503 || upstream.status === 429) {
+          await sleep(600 * (attempt + 1));
+          continue;
+        }
+
+        // If other error (e.g. 404), break to next candidate model
+        break;
+      } catch (err) {
+        lastErrorText = err instanceof Error ? err.message : String(err);
+        await sleep(500);
+      }
+    }
+  }
+
+  return new Response(
+    `Google Gemini is currently experiencing high demand. Please try again in a few seconds. (${lastErrorText.slice(0, 150)})`,
+    { status: 503 }
+  );
 }
 
 /**
- * Requests structured JSON from Google Gemini.
+ * Requests structured JSON from Google Gemini with automatic retry & fallback on 503/429.
  */
 export async function callGeminiJson<T = Record<string, unknown>>({
   system,
@@ -210,11 +235,7 @@ export async function callGeminiJson<T = Record<string, unknown>>({
 
   const allMessages: ChatMessage[] = [...messages];
   if (userContent) {
-    if (typeof userContent === "string") {
-      allMessages.push({ role: "user", content: userContent });
-    } else {
-      allMessages.push({ role: "user", content: userContent });
-    }
+    allMessages.push({ role: "user", content: userContent });
   }
 
   const { systemText, contents } = convertMessagesToGemini(allMessages, system);
@@ -230,34 +251,53 @@ export async function callGeminiJson<T = Record<string, unknown>>({
     payload.systemInstruction = { parts: [{ text: systemText }] };
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const modelsToTry = [model, ...FALLBACK_MODELS.filter((m) => m !== model)];
+  let lastError = "";
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  for (const candidateModel of modelsToTry) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${key}`;
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    if (res.status === 429) {
-      throw new Error("Gemini rate limit exceeded. Please wait a moment and try again.");
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          const data = (await res.json()) as {
+            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+          };
+          const content = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+          try {
+            return JSON.parse(content) as T;
+          } catch {
+            const match = content.match(/\{[\s\S]*\}/);
+            if (match) {
+              return JSON.parse(match[0]) as T;
+            }
+          }
+        }
+
+        const text = await res.text().catch(() => "");
+        lastError = `[${res.status}]: ${text.slice(0, 200)}`;
+
+        if (res.status === 503 || res.status === 429) {
+          // Model high demand or rate limit, wait and retry or fallback
+          await sleep(800 * (attempt + 1));
+          continue;
+        }
+
+        break; // Other error, try next candidate model
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+        await sleep(500);
+      }
     }
-    throw new Error(`Gemini API error [${res.status}]: ${text.slice(0, 300)}`);
   }
 
-  const data = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  const content = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
-
-  try {
-    return JSON.parse(content) as T;
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (match) {
-      return JSON.parse(match[0]) as T;
-    }
-    throw new Error("Failed to parse JSON response from Gemini.");
-  }
+  throw new Error(
+    `Google Gemini is currently experiencing temporary high demand on all model clusters. Please try again in a few moments. (Details: ${lastError})`
+  );
 }
