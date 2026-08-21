@@ -199,7 +199,7 @@ function SettingsPage() {
     try {
       if (userId) {
         const { error } = await supabase.from("profiles")
-          .upsert({ id: userId, language: draftLanguage, email: profile?.email ?? form.email || null });
+          .upsert({ id: userId, language: draftLanguage, email: profile?.email ?? (form.email || null) });
         if (error) throw error;
       }
       setEditingLanguage(false);
