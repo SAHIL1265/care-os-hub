@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { callGeminiJson } from "@/lib/ai.server";
 
 type Body = {
   image?: string; // data URL or base64
@@ -65,9 +66,6 @@ export const Route = createFileRoute("/api/scan-medicine")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
-
         let body: Body;
         try { body = await request.json(); } catch { return new Response("Invalid JSON", { status: 400 }); }
 
@@ -92,39 +90,19 @@ export const Route = createFileRoute("/api/scan-medicine")({
           userContent.push({ type: "image_url", image_url: { url } });
         }
 
-        const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            response_format: { type: "json_object" },
-            messages: [
-              { role: "system", content: systemPrompt(lang) },
-              { role: "user", content: userContent },
-            ],
-          }),
-        });
+        try {
+          const parsed = await callGeminiJson<Record<string, unknown>>({
+            system: systemPrompt(lang),
+            userContent,
+          });
 
-        if (!upstream.ok) {
-          const text = await upstream.text().catch(() => "");
-          if (upstream.status === 429) return new Response("Rate limit reached. Please try again shortly.", { status: 429 });
-          if (upstream.status === 402) return new Response("AI credits exhausted. Please add credits in Lovable.", { status: 402 });
-          return new Response(text || "AI gateway error", { status: upstream.status || 500 });
+          return new Response(JSON.stringify(parsed), {
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "AI medicine scanner failed.";
+          return new Response(message, { status: 502 });
         }
-
-        const data = await upstream.json();
-        const content: string = data?.choices?.[0]?.message?.content ?? "{}";
-        let parsed: Record<string, unknown> = {};
-        try { parsed = JSON.parse(content); }
-        catch {
-          // try to salvage a JSON block
-          const match = content.match(/\{[\s\S]*\}/);
-          if (match) { try { parsed = JSON.parse(match[0]); } catch { /* ignore */ } }
-        }
-
-        return new Response(JSON.stringify(parsed), {
-          headers: { "Content-Type": "application/json" },
-        });
       },
     },
   },

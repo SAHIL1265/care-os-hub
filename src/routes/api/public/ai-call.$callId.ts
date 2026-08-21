@@ -18,7 +18,8 @@ export const Route = createFileRoute("/api/public/ai-call/$callId")({
   server: {
     handlers: {
       POST: async ({ request, params }) => {
-        const key = process.env.LOVABLE_API_KEY;
+        const { getGeminiApiKey } = await import("@/lib/ai.server");
+        const key = getGeminiApiKey();
         if (!key) return twiml("<Say>Sorry, this service is unavailable.</Say><Hangup/>");
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

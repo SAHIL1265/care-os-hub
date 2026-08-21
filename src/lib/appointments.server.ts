@@ -1,7 +1,5 @@
 import type { Appointment, CallSummary, TranscriptTurn } from "./appointment-helpers";
-
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-2.5-flash";
+import { callGeminiJson } from "./ai.server";
 
 export function agentSystemPrompt(a: Appointment, simulated: boolean) {
   const facts = [
@@ -32,31 +30,11 @@ ${facts}
 ${simulated ? "\nNOTE: This run is a rehearsal with a simulated reception desk because no telephony provider is connected. Behave exactly as in a real call." : ""}`;
 }
 
-async function gatewayJson(key: string, system: string, user: string): Promise<Record<string, unknown>> {
-  const res = await fetch(GATEWAY, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: MODEL,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
+async function gatewayJson(_key: string, system: string, user: string): Promise<Record<string, unknown>> {
+  return await callGeminiJson<Record<string, unknown>>({
+    system,
+    userContent: user,
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`AI gateway error ${res.status}: ${text.slice(0, 300)}`);
-  }
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const content = json.choices?.[0]?.message?.content ?? "{}";
-  try {
-    return JSON.parse(content) as Record<string, unknown>;
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    return match ? (JSON.parse(match[0]) as Record<string, unknown>) : {};
-  }
 }
 
 function transcriptText(turns: TranscriptTurn[]) {
@@ -99,20 +77,42 @@ Return JSON with keys: confirmed (boolean), doctor_name, provider_name, date (YY
   return out as CallSummary;
 }
 
-/* ---------------- Telephony (Twilio via Lovable connector gateway) ---------------- */
+/* ---------------- Telephony (Direct Twilio / Optional Connector) ---------------- */
 
 export function telephonyConfigured() {
-  return Boolean(process.env.TWILIO_API_KEY && process.env.LOVABLE_API_KEY && process.env.TWILIO_FROM_NUMBER);
+  return Boolean(
+    (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER) ||
+    (process.env.TWILIO_API_KEY && process.env.TWILIO_FROM_NUMBER)
+  );
 }
 
 async function twilioForm(path: string, form: Record<string, string>) {
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    const auth = Buffer.from(`${sid}:${token}`).toString("base64");
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams(form),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`Twilio error [${res.status}]: ${text.slice(0, 400)}`);
+    return JSON.parse(text) as Record<string, unknown>;
+  }
+
+  const authHeader = process.env.LOVABLE_API_KEY ? `Bearer ${process.env.LOVABLE_API_KEY}` : "";
+  const headers: Record<string, string> = {
+    "X-Connection-Api-Key": (process.env.TWILIO_API_KEY as string) || "",
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  if (authHeader) headers.Authorization = authHeader;
   const res = await fetch(`https://connector-gateway.lovable.dev/twilio${path}`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": process.env.TWILIO_API_KEY as string,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
+    headers,
     body: new URLSearchParams(form),
   });
   const text = await res.text();

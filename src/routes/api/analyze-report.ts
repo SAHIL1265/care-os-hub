@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { callGeminiJson } from "@/lib/ai.server";
 
 type Body = {
   file?: string; // data URL
@@ -50,9 +51,6 @@ export const Route = createFileRoute("/api/analyze-report")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return new Response("AI service is not configured.", { status: 500 });
-
         let body: Body;
         try { body = await request.json(); } catch { return new Response("Invalid request.", { status: 400 }); }
         if (!body.file) return new Response("No file received.", { status: 400 });
@@ -69,42 +67,17 @@ export const Route = createFileRoute("/api/analyze-report")({
           userContent.push({ type: "image_url", image_url: { url: dataUrl } });
         }
 
-        let upstream: Response;
         try {
-          upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
-              response_format: { type: "json_object" },
-              messages: [
-                { role: "system", content: SYSTEM },
-                { role: "user", content: userContent },
-              ],
-            }),
+          const parsed = await callGeminiJson<Record<string, unknown>>({
+            system: SYSTEM,
+            userContent,
           });
-        } catch {
-          return new Response("We couldn't reach the analysis service. Please try again.", { status: 502 });
-        }
 
-        if (!upstream.ok) {
-          if (upstream.status === 429) return new Response("Too many requests right now. Please try again in a moment.", { status: 429 });
-          if (upstream.status === 402) return new Response("AI credits exhausted. Please add credits in Lovable.", { status: 402 });
-          return new Response("We couldn't analyze this report right now. Please try again.", { status: 502 });
+          return new Response(JSON.stringify(parsed), { headers: { "Content-Type": "application/json" } });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "We couldn't analyze this report right now.";
+          return new Response(message, { status: 502 });
         }
-
-        const data = await upstream.json().catch(() => null);
-        const content: string = data?.choices?.[0]?.message?.content ?? "";
-        let parsed: Record<string, unknown> | null = null;
-        try { parsed = JSON.parse(content); } catch {
-          const match = content.match(/\{[\s\S]*\}/);
-          if (match) { try { parsed = JSON.parse(match[0]); } catch { /* ignore */ } }
-        }
-        if (!parsed) {
-          return new Response("We couldn't read this report clearly. Please upload a clearer image or PDF.", { status: 422 });
-        }
-
-        return new Response(JSON.stringify(parsed), { headers: { "Content-Type": "application/json" } });
       },
     },
   },

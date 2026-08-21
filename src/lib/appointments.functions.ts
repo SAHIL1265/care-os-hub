@@ -48,8 +48,9 @@ export const advanceAiCall = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { callId: string }) => input)
   .handler(async ({ data, context }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const { getGeminiApiKey } = await import("./ai.server");
+    const key = getGeminiApiKey();
+    if (!key) throw new Error("Missing GEMINI_API_KEY. Please add GEMINI_API_KEY to your .env file.");
     const { runSimulatedTurn } = await import("./appointments-flow.server");
     const { call, done } = await runSimulatedTurn(context.supabase, key, data.callId);
     return { transcript: call.transcript, status: call.status, done };
@@ -59,8 +60,9 @@ export const endAiCall = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { callId: string; cancelled?: boolean }) => input)
   .handler(async ({ data, context }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const { getGeminiApiKey } = await import("./ai.server");
+    const key = getGeminiApiKey();
+    if (!key) throw new Error("Missing GEMINI_API_KEY. Please add GEMINI_API_KEY to your .env file.");
     const { finalizeCall } = await import("./appointments-flow.server");
     return await finalizeCall(context.supabase, key, data.callId, data.cancelled === true);
   });
