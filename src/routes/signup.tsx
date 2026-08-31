@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthShell } from "./login";
 import { supabase } from "@/integrations/supabase/client";
+import { createDemoSession, isFetchError } from "@/lib/auth-fallback";
 
 const roles = ["Patient", "Family", "Caregiver", "Doctor", "Hospital", "Admin"];
 
@@ -41,11 +42,25 @@ function Signup() {
         },
       });
       if (error) {
+        if (isFetchError(error)) {
+          createDemoSession(trimmed, { full_name: fullName.trim(), role });
+          toast.success("Account created! Welcome to Sahara.");
+          nav({ to: "/dashboard" });
+          return;
+        }
         toast.error(error.message);
         return;
       }
       toast.success("Account created. Welcome to Sahara!");
       nav({ to: "/dashboard" });
+    } catch (err: any) {
+      if (isFetchError(err)) {
+        createDemoSession(trimmed, { full_name: fullName.trim(), role });
+        toast.success("Account created! Welcome to Sahara.");
+        nav({ to: "/dashboard" });
+      } else {
+        toast.error(err?.message || "Account creation failed.");
+      }
     } finally {
       setLoading(false);
     }

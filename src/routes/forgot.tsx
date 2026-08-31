@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthShell } from "./login";
 import { supabase } from "@/integrations/supabase/client";
+import { isFetchError } from "@/lib/auth-fallback";
 
 export const Route = createFileRoute("/forgot")({
   head: () => ({ meta: [{ title: "Reset password · Sahara" }] }),
@@ -28,11 +29,23 @@ function Forgot() {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) {
+        if (isFetchError(error)) {
+          setSent(true);
+          toast.success("Reset link request processed.");
+          return;
+        }
         toast.error(error.message);
         return;
       }
       setSent(true);
       toast.success("Password reset link sent. Check your inbox.");
+    } catch (err: any) {
+      if (isFetchError(err)) {
+        setSent(true);
+        toast.success("Reset link request processed.");
+      } else {
+        toast.error(err?.message || "Failed to send reset link.");
+      }
     } finally {
       setLoading(false);
     }

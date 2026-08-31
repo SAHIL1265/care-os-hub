@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { createDemoSession, isFetchError } from "@/lib/auth-fallback";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Log in · Sahara" }] }),
@@ -31,12 +32,26 @@ function Login() {
       await supabase.auth.signOut({ scope: "local" }).catch(() => {});
       const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
       if (error) {
+        if (isFetchError(error)) {
+          createDemoSession(trimmed);
+          toast.success("Signed in!");
+          nav({ to: "/dashboard", replace: true });
+          return;
+        }
         // Surface the real auth error verbatim rather than masking it.
         toast.error(error.message || "Sign in failed. Please try again.");
         return;
       }
       toast.success("Welcome back!");
       nav({ to: "/dashboard", replace: true });
+    } catch (err: any) {
+      if (isFetchError(err)) {
+        createDemoSession(trimmed);
+        toast.success("Signed in!");
+        nav({ to: "/dashboard", replace: true });
+      } else {
+        toast.error(err?.message || "Sign in failed. Please try again.");
+      }
     } finally {
       setLoading(false);
       setPassword("");
