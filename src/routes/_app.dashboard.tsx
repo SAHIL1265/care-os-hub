@@ -20,6 +20,10 @@ import {
   family, aiRecommendations, reports,
 } from "@/lib/demo-data";
 
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { getStoredProfile, PROFILE_UPDATED_EVENT } from "@/lib/profile-helpers";
+
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · CareOS AI" }] }),
   component: Dashboard,
@@ -29,10 +33,30 @@ function Dashboard() {
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
+  const [userName, setUserName] = useState<string>(user.name);
+
+  const syncUserName = useCallback(async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    const u = auth.user;
+    if (u) {
+      const cached = getStoredProfile(u.id);
+      const name = cached?.full_name || u.user_metadata?.full_name || user.name;
+      setUserName(name);
+    }
+  }, []);
+
+  useEffect(() => {
+    void syncUserName();
+    window.addEventListener(PROFILE_UPDATED_EVENT, syncUserName);
+    return () => window.removeEventListener(PROFILE_UPDATED_EVENT, syncUserName);
+  }, [syncUserName]);
+
+  const firstName = userName.trim().split(" ")[0] || "User";
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`${greet}, ${user.name.split(" ")[0]} 👋`}
+        title={`${greet}, ${firstName} 👋`}
         subtitle="Here's your health snapshot for today."
         actions={
           <Button asChild className="gradient-bg text-white shadow-elegant">

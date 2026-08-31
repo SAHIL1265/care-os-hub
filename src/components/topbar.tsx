@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Bell, LogOut, Moon, Search, Siren, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -15,39 +15,55 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/components/theme-provider";
-import { user } from "@/lib/demo-data";
+import { user as demoUser } from "@/lib/demo-data";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { getStoredProfile, initialsFrom, PROFILE_UPDATED_EVENT } from "@/lib/profile-helpers";
 
 export function Topbar() {
   const { theme, toggleTheme } = useTheme();
   const nav = useNavigate();
   const queryClient = useQueryClient();
-  const [email, setEmail] = useState<string | null>(null);
+
+  const [displayName, setDisplayName] = useState<string>(demoUser.name);
+  const [displayEmail, setDisplayEmail] = useState<string | null>(demoUser.email);
+  const [displayAvatar, setDisplayAvatar] = useState<string | undefined>(demoUser.avatar);
+
+  const syncProfile = useCallback(async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    const u = auth.user;
+    if (u) {
+      setDisplayEmail(u.email ?? demoUser.email);
+      const cached = getStoredProfile(u.id);
+      const name = cached?.full_name || u.user_metadata?.full_name || demoUser.name;
+      const avatar = cached?.avatar_url || cached?.avatar_path || u.user_metadata?.avatar_url || demoUser.avatar;
+      setDisplayName(name);
+      if (avatar) setDisplayAvatar(avatar);
+    }
+  }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setEmail(session?.user.email ?? null);
+    void syncProfile();
+    window.addEventListener(PROFILE_UPDATED_EVENT, syncProfile);
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      void syncProfile();
     });
-    return () => sub.subscription.unsubscribe();
-  }, []);
+    return () => {
+      window.removeEventListener(PROFILE_UPDATED_EVENT, syncProfile);
+      sub.subscription.unsubscribe();
+    };
+  }, [syncProfile]);
 
   async function handleLogout() {
     try {
-      // Stop in-flight protected queries before the session is gone so we
-      // don't storm the cleared token with 401s or resurrect stale data.
       await queryClient.cancelQueries();
       queryClient.clear();
-      // Clear cached AI conversation tied to the previous user session.
       try { localStorage.removeItem("sahara.ai.chat.v1"); } catch {}
-      // Local-scope sign out clears only THIS device's session; the account
-      // and password on the auth server are untouched.
       await supabase.auth.signOut({ scope: "local" });
     } catch (err) {
       console.error("Sign out error", err);
     } finally {
-      setEmail(null);
+      setDisplayEmail(null);
       toast.success("Signed out");
       nav({ to: "/login", replace: true });
     }
@@ -75,13 +91,13 @@ export function Topbar() {
           <DropdownMenuTrigger asChild>
             <button aria-label="Account menu" className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary">
               <Avatar className="h-9 w-9 ring-2 ring-primary/30">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback>{user.name.slice(0, 2)}</AvatarFallback>
+                <AvatarImage src={displayAvatar} alt={displayName} />
+                <AvatarFallback>{initialsFrom(displayName, displayEmail)}</AvatarFallback>
               </Avatar>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="truncate">{email ?? user.name}</DropdownMenuLabel>
+            <DropdownMenuLabel className="truncate">{displayName || displayEmail}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to="/settings">Settings</Link>

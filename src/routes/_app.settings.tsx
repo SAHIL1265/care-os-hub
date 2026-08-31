@@ -28,7 +28,7 @@ import { useI18n } from "@/lib/i18n";
 import { LANGUAGES, getLanguageMeta, type LanguageCode } from "@/lib/i18n-languages";
 import {
   AVATAR_ACCEPT, BLOOD_GROUPS, compressAvatar, initialsFrom, isValidEmail,
-  validateImage, type UserProfile,
+  validateImage, type UserProfile, fileToDataUrl, getStoredProfile, saveStoredProfile,
 } from "@/lib/profile-helpers";
 import {
   DEVICE_TYPES, DeviceError, bluetoothSupport, deliverNotification, disconnectDevice,
@@ -89,17 +89,23 @@ function SettingsPage() {
 
   const signedAvatar = useCallback(async (path: string | null) => {
     if (!path) return null;
-    const { data } = await supabase.storage.from("avatars").createSignedUrl(path, 60 * 60);
+    if (path.startsWith("data:") || path.startsWith("http")) return path;
+    const { data } = await supabase.storage.from("avatars").createSignedUrl(path, 60 * 60).catch(() => ({ data: null }));
     return data?.signedUrl ?? null;
   }, []);
 
   const loadDevices = useCallback(async (uid: string) => {
     setDevicesLoading(true);
-    const { data, error } = await supabase
-      .from("user_devices").select("*").eq("user_id", uid).order("created_at", { ascending: true });
-    if (error) toast.error("Could not load your devices.");
-    setDevices((data ?? []) as unknown as UserDevice[]);
-    setDevicesLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from("user_devices").select("*").eq("user_id", uid).order("created_at", { ascending: true });
+      if (error) toast.error("Could not load your devices.");
+      setDevices((data ?? []) as unknown as UserDevice[]);
+    } catch {
+      setDevices([]);
+    } finally {
+      setDevicesLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -110,24 +116,36 @@ function SettingsPage() {
       if (!user || !active) { setLoading(false); return; }
       setUserId(user.id);
 
-      const { data: row, error } = await supabase
-        .from("profiles").select("*").eq("id", user.id).maybeSingle();
-      if (error) toast.error("Could not load your profile.");
+      const cached = getStoredProfile(user.id);
+      const userMeta = user.user_metadata || {};
 
-      const next: UserProfile = (row as unknown as UserProfile) ?? {
-        id: user.id, full_name: null, email: user.email ?? null,
-        age: null, blood_group: null, avatar_path: null, language,
+      let row: any = null;
+      try {
+        const res = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+        row = res.data;
+      } catch {}
+
+      const next: UserProfile = {
+        id: user.id,
+        full_name: row?.full_name ?? cached?.full_name ?? userMeta.full_name ?? null,
+        email: row?.email ?? cached?.email ?? user.email ?? null,
+        age: row?.age ?? cached?.age ?? userMeta.age ?? null,
+        blood_group: row?.blood_group ?? cached?.blood_group ?? userMeta.blood_group ?? null,
+        avatar_path: row?.avatar_path ?? cached?.avatar_path ?? userMeta.avatar_url ?? null,
+        avatar_url: cached?.avatar_url ?? userMeta.avatar_url ?? null,
+        language: row?.language ?? cached?.language ?? language,
       };
       if (!active) return;
       setProfile(next);
       setForm({
-        full_name: next.full_name ?? "",
+        full_name: next.full_name ?? user.user_metadata?.full_name ?? "",
         email: next.email ?? user.email ?? "",
-        age: next.age?.toString() ?? "",
-        blood_group: next.blood_group ?? "",
+        age: next.age?.toString() ?? user.user_metadata?.age?.toString() ?? "",
+        blood_group: next.blood_group ?? user.user_metadata?.blood_group ?? "",
       });
-      setAvatarUrl(await signedAvatar(next.avatar_path));
-      setEditingProfile(!row);
+      const url = next.avatar_url ?? (await signedAvatar(next.avatar_path));
+      setAvatarUrl(url);
+      setEditingProfile(!row && !cached);
       setLoading(false);
       void loadDevices(user.id);
     })();
@@ -159,31 +177,66 @@ function SettingsPage() {
     setSaving(true);
     try {
       let avatarPath = profile?.avatar_path ?? null;
+      let avatarDataUrl = profile?.avatar_url ?? avatarUrl ?? null;
+
       if (avatarBlob) {
+        avatarDataUrl = await fileToDataUrl(avatarBlob).catch(() => null);
         const path = `${userId}/avatar-${Date.now()}.jpg`;
-        const { error: uploadError } = await supabase.storage
-          .from("avatars").upload(path, avatarBlob, { contentType: "image/jpeg", upsert: true });
-        if (uploadError) throw uploadError;
-        if (avatarPath) await supabase.storage.from("avatars").remove([avatarPath]);
-        avatarPath = path;
+        try {
+          const { error: uploadError } = await supabase.storage
+            .from("avatars").upload(path, avatarBlob, { contentType: "image/jpeg", upsert: true });
+          if (!uploadError) {
+            if (avatarPath) await supabase.storage.from("avatars").remove([avatarPath]).catch(() => {});
+            avatarPath = path;
+          }
+        } catch {}
       }
 
-      const payload = {
+      const payload: UserProfile = {
         id: userId,
         full_name: form.full_name.trim(),
         email: form.email.trim(),
         age: ageValue,
         blood_group: form.blood_group || null,
         avatar_path: avatarPath,
+        avatar_url: avatarDataUrl,
         language,
       };
-      const { error } = await supabase.from("profiles").upsert(payload);
-      if (error) throw error;
 
-      setProfile(payload as UserProfile);
+      // Save locally first so profile is updated instantly regardless of backend connectivity
+      saveStoredProfile(payload);
+
+      // Attempt remote database update if available
+      try {
+        await supabase.from("profiles").upsert({
+          id: userId,
+          full_name: payload.full_name,
+          email: payload.email,
+          age: payload.age,
+          blood_group: payload.blood_group,
+          avatar_path: payload.avatar_path,
+          language: payload.language,
+        });
+      } catch (e) {
+        console.warn("Supabase profile save warning:", e);
+      }
+
+      // Attempt updating user metadata in Supabase auth
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            full_name: payload.full_name,
+            age: payload.age,
+            blood_group: payload.blood_group,
+            avatar_url: avatarDataUrl,
+          },
+        });
+      } catch {}
+
+      setProfile(payload);
       setAvatarBlob(null);
       setAvatarPreview(null);
-      setAvatarUrl(await signedAvatar(avatarPath));
+      setAvatarUrl(avatarDataUrl);
       setEditingProfile(false);
       toast.success(t("profile.savedOk"));
     } catch (err) {

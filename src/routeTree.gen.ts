@@ -27,7 +27,6 @@ import { Route as AppMedicinesRouteImport } from './routes/_app.medicines'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as AppWellnessRouteImport } from './routes/_app.wellness'
 import { Route as ApiAnalyzeReportRouteImport } from './routes/api/analyze-report'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiReportChatRouteImport } from './routes/api/report-chat'
@@ -125,11 +124,6 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
-const AppWellnessRoute = AppWellnessRouteImport.update({
-  id: '/wellness',
-  path: '/wellness',
-  getParentRoute: () => AppRoute,
-} as any)
 const ApiAnalyzeReportRoute = ApiAnalyzeReportRouteImport.update({
   id: '/api/analyze-report',
   path: '/api/analyze-report',
@@ -184,7 +178,6 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AppNotificationsRoute
   '/reports': typeof AppReportsRouteWithChildren
   '/settings': typeof AppSettingsRoute
-  '/wellness': typeof AppWellnessRoute
   '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
   '/api/report-chat': typeof ApiReportChatRoute
@@ -210,7 +203,6 @@ export interface FileRoutesByTo {
   '/medicines': typeof AppMedicinesRoute
   '/notifications': typeof AppNotificationsRoute
   '/settings': typeof AppSettingsRoute
-  '/wellness': typeof AppWellnessRoute
   '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
   '/api/report-chat': typeof ApiReportChatRoute
@@ -239,7 +231,6 @@ export interface FileRoutesById {
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/reports': typeof AppReportsRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
-  '/_app/wellness': typeof AppWellnessRoute
   '/api/analyze-report': typeof ApiAnalyzeReportRoute
   '/api/chat': typeof ApiChatRoute
   '/api/report-chat': typeof ApiReportChatRoute
@@ -268,7 +259,6 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/reports'
     | '/settings'
-    | '/wellness'
     | '/api/analyze-report'
     | '/api/chat'
     | '/api/report-chat'
@@ -294,7 +284,6 @@ export interface FileRouteTypes {
     | '/medicines'
     | '/notifications'
     | '/settings'
-    | '/wellness'
     | '/api/analyze-report'
     | '/api/chat'
     | '/api/report-chat'
@@ -322,7 +311,6 @@ export interface FileRouteTypes {
     | '/_app/notifications'
     | '/_app/reports'
     | '/_app/settings'
-    | '/_app/wellness'
     | '/api/analyze-report'
     | '/api/chat'
     | '/api/report-chat'
@@ -474,13 +462,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/wellness': {
-      id: '/_app/wellness'
-      path: '/wellness'
-      fullPath: '/wellness'
-      preLoaderRoute: typeof AppWellnessRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/api/analyze-report': {
       id: '/api/analyze-report'
       path: '/api/analyze-report'
@@ -560,7 +541,6 @@ interface AppRouteChildren {
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppReportsRoute: typeof AppReportsRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
-  AppWellnessRoute: typeof AppWellnessRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -576,7 +556,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotificationsRoute: AppNotificationsRoute,
   AppReportsRoute: AppReportsRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
-  AppWellnessRoute: AppWellnessRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

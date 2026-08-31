@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Bot, Users, Pill, FileText, CalendarDays, Activity, PhoneCall,
-  Brain, BarChart3, Siren, Bell, Settings, Heart,
+  BarChart3, Siren, Bell, Settings, Heart,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -20,7 +20,6 @@ const mainItems = [
 
 const wellnessItems = [
   { title: "Fitness", url: "/fitness", icon: Activity },
-  { title: "Mental Wellness", url: "/wellness", icon: Brain },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
 ];
 

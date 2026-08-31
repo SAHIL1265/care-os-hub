@@ -21,7 +21,6 @@ const features = [
   { icon: Pill, title: "Smart Medicines", desc: "Reminders, refill tracking, and adherence scoring." },
   { icon: Activity, title: "Real-time Vitals", desc: "Heart rate, BP, sugar, SpO₂, sleep and more." },
   { icon: Siren, title: "Emergency SOS", desc: "One tap alerts family, doctors and the nearest hospital." },
-  { icon: Brain, title: "Mental Wellness", desc: "Mood tracker, meditation and AI therapist support." },
 ];
 
 const roles = [
