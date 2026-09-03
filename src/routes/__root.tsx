@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { I18nProvider } from "@/lib/i18n";
 
 function NotFoundComponent() {
   return (
@@ -155,10 +156,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <Outlet />
-        <Toaster position="top-right" richColors closeButton />
-      </ThemeProvider>
+      <I18nProvider>
+        <ThemeProvider>
+          <Outlet />
+          <Toaster position="top-right" richColors closeButton />
+        </ThemeProvider>
+      </I18nProvider>
     </QueryClientProvider>
   );
 }
