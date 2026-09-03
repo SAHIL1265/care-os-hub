@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/components/theme-provider";
+import { useI18n } from "@/lib/i18n";
 import { user as demoUser } from "@/lib/demo-data";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,6 +23,7 @@ import { getStoredProfile, initialsFrom, PROFILE_UPDATED_EVENT } from "@/lib/pro
 
 export function Topbar() {
   const { theme, toggleTheme } = useTheme();
+  const { t } = useI18n();
   const nav = useNavigate();
   const queryClient = useQueryClient();
 
@@ -83,7 +85,7 @@ export function Topbar() {
         <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
           {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
-        <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+        <Button variant="ghost" size="icon" className="relative" aria-label={t("nav.notifications")}>
           <Bell className="h-5 w-5" />
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
         </Button>
@@ -100,14 +102,14 @@ export function Topbar() {
             <DropdownMenuLabel className="truncate">{displayName || displayEmail}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to="/settings">Settings</Link>
+              <Link to="/settings">{t("nav.settings")}</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to="/notifications">Notifications</Link>
+              <Link to="/notifications">{t("nav.notifications")}</Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive">
-              <LogOut className="mr-2 h-4 w-4" /> Sign out
+              <LogOut className="mr-2 h-4 w-4" /> {t("common.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
