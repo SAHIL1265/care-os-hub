@@ -9,49 +9,35 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppRouteImport } from './routes/_app'
-import { Route as ForgotRouteImport } from './routes/forgot'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
-import { Route as AppAiRouteImport } from './routes/_app.ai'
-import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
-import { Route as AppAppointmentsRouteImport } from './routes/_app.appointments'
-import { Route as AppCallHistoryRouteImport } from './routes/_app.call-history'
-import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
-import { Route as AppEmergencyRouteImport } from './routes/_app.emergency'
-import { Route as AppFamilyRouteImport } from './routes/_app.family'
-import { Route as AppFitnessRouteImport } from './routes/_app.fitness'
-import { Route as AppMedicinesRouteImport } from './routes/_app.medicines'
-import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
-import { Route as AppReportsRouteImport } from './routes/_app.reports'
-import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as ApiAnalyzeReportRouteImport } from './routes/api/analyze-report'
-import { Route as ApiChatRouteImport } from './routes/api/chat'
-import { Route as ApiReportChatRouteImport } from './routes/api/report-chat'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotRouteImport } from './routes/forgot'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiScanMedicineRouteImport } from './routes/api/scan-medicine'
+import { Route as ApiReportChatRouteImport } from './routes/api/report-chat'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiAnalyzeReportRouteImport } from './routes/api/analyze-report'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppReportsRouteImport } from './routes/_app.reports'
+import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppMedicinesRouteImport } from './routes/_app.medicines'
+import { Route as AppFitnessRouteImport } from './routes/_app.fitness'
+import { Route as AppFamilyRouteImport } from './routes/_app.family'
+import { Route as AppEmergencyRouteImport } from './routes/_app.emergency'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppCallHistoryRouteImport } from './routes/_app.call-history'
+import { Route as AppAppointmentsRouteImport } from './routes/_app.appointments'
+import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
+import { Route as AppAiRouteImport } from './routes/_app.ai'
 import { Route as AppReportsIndexRouteImport } from './routes/_app.reports.index'
 import { Route as AppReportsReportIdRouteImport } from './routes/_app.reports.$reportId'
 import { Route as ApiPublicAiCallCallIdRouteImport } from './routes/api/public/ai-call.$callId'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotRoute = ForgotRouteImport.update({
-  id: '/forgot',
-  path: '/forgot',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -59,79 +45,28 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppAiRoute = AppAiRouteImport.update({
-  id: '/ai',
-  path: '/ai',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAppointmentsRoute = AppAppointmentsRouteImport.update({
-  id: '/appointments',
-  path: '/appointments',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCallHistoryRoute = AppCallHistoryRouteImport.update({
-  id: '/call-history',
-  path: '/call-history',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEmergencyRoute = AppEmergencyRouteImport.update({
-  id: '/emergency',
-  path: '/emergency',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFamilyRoute = AppFamilyRouteImport.update({
-  id: '/family',
-  path: '/family',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFitnessRoute = AppFitnessRouteImport.update({
-  id: '/fitness',
-  path: '/fitness',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMedicinesRoute = AppMedicinesRouteImport.update({
-  id: '/medicines',
-  path: '/medicines',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNotificationsRoute = AppNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReportsRoute = AppReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const ApiAnalyzeReportRoute = ApiAnalyzeReportRouteImport.update({
-  id: '/api/analyze-report',
-  path: '/api/analyze-report',
+const ForgotRoute = ForgotRouteImport.update({
+  id: '/forgot',
+  path: '/forgot',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiChatRoute = ApiChatRouteImport.update({
-  id: '/api/chat',
-  path: '/api/chat',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiScanMedicineRoute = ApiScanMedicineRouteImport.update({
+  id: '/api/scan-medicine',
+  path: '/api/scan-medicine',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiReportChatRoute = ApiReportChatRouteImport.update({
@@ -139,10 +74,75 @@ const ApiReportChatRoute = ApiReportChatRouteImport.update({
   path: '/api/report-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiScanMedicineRoute = ApiScanMedicineRouteImport.update({
-  id: '/api/scan-medicine',
-  path: '/api/scan-medicine',
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnalyzeReportRoute = ApiAnalyzeReportRouteImport.update({
+  id: '/api/analyze-report',
+  path: '/api/analyze-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMedicinesRoute = AppMedicinesRouteImport.update({
+  id: '/medicines',
+  path: '/medicines',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFitnessRoute = AppFitnessRouteImport.update({
+  id: '/fitness',
+  path: '/fitness',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFamilyRoute = AppFamilyRouteImport.update({
+  id: '/family',
+  path: '/family',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEmergencyRoute = AppEmergencyRouteImport.update({
+  id: '/emergency',
+  path: '/emergency',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCallHistoryRoute = AppCallHistoryRouteImport.update({
+  id: '/call-history',
+  path: '/call-history',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAppointmentsRoute = AppAppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAiRoute = AppAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
   id: '/',
@@ -336,32 +336,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot': {
-      id: '/forgot'
-      path: '/forgot'
-      fullPath: '/forgot'
-      preLoaderRoute: typeof ForgotRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -371,109 +350,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/ai': {
-      id: '/_app/ai'
-      path: '/ai'
-      fullPath: '/ai'
-      preLoaderRoute: typeof AppAiRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/analytics': {
-      id: '/_app/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AppAnalyticsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/appointments': {
-      id: '/_app/appointments'
-      path: '/appointments'
-      fullPath: '/appointments'
-      preLoaderRoute: typeof AppAppointmentsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/call-history': {
-      id: '/_app/call-history'
-      path: '/call-history'
-      fullPath: '/call-history'
-      preLoaderRoute: typeof AppCallHistoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/emergency': {
-      id: '/_app/emergency'
-      path: '/emergency'
-      fullPath: '/emergency'
-      preLoaderRoute: typeof AppEmergencyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/family': {
-      id: '/_app/family'
-      path: '/family'
-      fullPath: '/family'
-      preLoaderRoute: typeof AppFamilyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/fitness': {
-      id: '/_app/fitness'
-      path: '/fitness'
-      fullPath: '/fitness'
-      preLoaderRoute: typeof AppFitnessRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/medicines': {
-      id: '/_app/medicines'
-      path: '/medicines'
-      fullPath: '/medicines'
-      preLoaderRoute: typeof AppMedicinesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/notifications': {
-      id: '/_app/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof AppNotificationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/reports': {
-      id: '/_app/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof AppReportsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/api/analyze-report': {
-      id: '/api/analyze-report'
-      path: '/api/analyze-report'
-      fullPath: '/api/analyze-report'
-      preLoaderRoute: typeof ApiAnalyzeReportRouteImport
+    '/forgot': {
+      id: '/forgot'
+      path: '/forgot'
+      fullPath: '/forgot'
+      preLoaderRoute: typeof ForgotRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/chat': {
-      id: '/api/chat'
-      path: '/api/chat'
-      fullPath: '/api/chat'
-      preLoaderRoute: typeof ApiChatRouteImport
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/scan-medicine': {
+      id: '/api/scan-medicine'
+      path: '/api/scan-medicine'
+      fullPath: '/api/scan-medicine'
+      preLoaderRoute: typeof ApiScanMedicineRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/report-chat': {
@@ -483,12 +392,103 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiReportChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/scan-medicine': {
-      id: '/api/scan-medicine'
-      path: '/api/scan-medicine'
-      fullPath: '/api/scan-medicine'
-      preLoaderRoute: typeof ApiScanMedicineRouteImport
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/analyze-report': {
+      id: '/api/analyze-report'
+      path: '/api/analyze-report'
+      fullPath: '/api/analyze-report'
+      preLoaderRoute: typeof ApiAnalyzeReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/medicines': {
+      id: '/_app/medicines'
+      path: '/medicines'
+      fullPath: '/medicines'
+      preLoaderRoute: typeof AppMedicinesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fitness': {
+      id: '/_app/fitness'
+      path: '/fitness'
+      fullPath: '/fitness'
+      preLoaderRoute: typeof AppFitnessRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/family': {
+      id: '/_app/family'
+      path: '/family'
+      fullPath: '/family'
+      preLoaderRoute: typeof AppFamilyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/emergency': {
+      id: '/_app/emergency'
+      path: '/emergency'
+      fullPath: '/emergency'
+      preLoaderRoute: typeof AppEmergencyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/call-history': {
+      id: '/_app/call-history'
+      path: '/call-history'
+      fullPath: '/call-history'
+      preLoaderRoute: typeof AppCallHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/appointments': {
+      id: '/_app/appointments'
+      path: '/appointments'
+      fullPath: '/appointments'
+      preLoaderRoute: typeof AppAppointmentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/analytics': {
+      id: '/_app/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AppAnalyticsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ai': {
+      id: '/_app/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof AppAiRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/reports/': {
       id: '/_app/reports/'

@@ -28,7 +28,7 @@ import { useI18n } from "@/lib/i18n";
 import { LANGUAGES, getLanguageMeta, type LanguageCode } from "@/lib/i18n-languages";
 import {
   AVATAR_ACCEPT, BLOOD_GROUPS, compressAvatar, initialsFrom, isValidEmail,
-  validateImage, type UserProfile, fileToDataUrl, getStoredProfile, saveStoredProfile,
+  validateImage, type UserProfile, getStoredProfile, saveStoredProfile,
 } from "@/lib/profile-helpers";
 import {
   DEVICE_TYPES, DeviceError, bluetoothSupport, deliverNotification, disconnectDevice,
@@ -177,19 +177,14 @@ function SettingsPage() {
     setSaving(true);
     try {
       let avatarPath = profile?.avatar_path ?? null;
-      let avatarDataUrl = profile?.avatar_url ?? avatarUrl ?? null;
 
       if (avatarBlob) {
-        avatarDataUrl = await fileToDataUrl(avatarBlob).catch(() => null);
         const path = `${userId}/avatar-${Date.now()}.jpg`;
-        try {
-          const { error: uploadError } = await supabase.storage
-            .from("avatars").upload(path, avatarBlob, { contentType: "image/jpeg", upsert: true });
-          if (!uploadError) {
-            if (avatarPath) await supabase.storage.from("avatars").remove([avatarPath]).catch(() => {});
-            avatarPath = path;
-          }
-        } catch {}
+        const { error: uploadError } = await supabase.storage
+          .from("avatars").upload(path, avatarBlob, { contentType: "image/jpeg", upsert: true });
+        if (uploadError) throw uploadError;
+        if (avatarPath) await supabase.storage.from("avatars").remove([avatarPath]).catch(() => {});
+        avatarPath = path;
       }
 
       const payload: UserProfile = {
@@ -199,44 +194,40 @@ function SettingsPage() {
         age: ageValue,
         blood_group: form.blood_group || null,
         avatar_path: avatarPath,
-        avatar_url: avatarDataUrl,
+        // Keep the local profile lightweight. Private images are re-signed on load.
+        avatar_url: null,
         language,
       };
 
-      // Save locally first so profile is updated instantly regardless of backend connectivity
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        id: userId,
+        full_name: payload.full_name,
+        email: payload.email,
+        age: payload.age,
+        blood_group: payload.blood_group,
+        avatar_path: payload.avatar_path,
+        language: payload.language,
+      });
+      if (profileError) throw profileError;
+
+      const signedUrl = await signedAvatar(avatarPath);
       saveStoredProfile(payload);
-
-      // Attempt remote database update if available
-      try {
-        await supabase.from("profiles").upsert({
-          id: userId,
-          full_name: payload.full_name,
-          email: payload.email,
-          age: payload.age,
-          blood_group: payload.blood_group,
-          avatar_path: payload.avatar_path,
-          language: payload.language,
-        });
-      } catch (e) {
-        console.warn("Supabase profile save warning:", e);
-      }
-
-      // Attempt updating user metadata in Supabase auth
       try {
         await supabase.auth.updateUser({
           data: {
             full_name: payload.full_name,
             age: payload.age,
             blood_group: payload.blood_group,
-            avatar_url: avatarDataUrl,
           },
         });
-      } catch {}
+      } catch {
+        // Auth metadata is supplementary; the profile row is the source of truth.
+      }
 
       setProfile(payload);
       setAvatarBlob(null);
       setAvatarPreview(null);
-      setAvatarUrl(avatarDataUrl);
+      setAvatarUrl(signedUrl);
       setEditingProfile(false);
       toast.success(t("profile.savedOk"));
     } catch (err) {

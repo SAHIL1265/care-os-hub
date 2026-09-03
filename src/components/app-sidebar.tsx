@@ -7,29 +7,31 @@ import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter,
 } from "@/components/ui/sidebar";
+import { useI18n, type TranslationKey } from "@/lib/i18n";
 
-const mainItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "AI Assistant", url: "/ai", icon: Bot },
-  { title: "Family", url: "/family", icon: Users },
-  { title: "Call History", url: "/call-history", icon: PhoneCall },
-  { title: "Medicines", url: "/medicines", icon: Pill },
-  { title: "Reports", url: "/reports", icon: FileText },
-  { title: "Appointments", url: "/appointments", icon: CalendarDays },
+const mainItems: { key: TranslationKey; url: string; icon: any }[] = [
+  { key: "nav.dashboard" as TranslationKey, url: "/dashboard", icon: LayoutDashboard },
+  { key: "nav.ai" as TranslationKey, url: "/ai", icon: Bot },
+  { key: "nav.family" as TranslationKey, url: "/family", icon: Users },
+  { key: "nav.callHistory" as TranslationKey, url: "/call-history", icon: PhoneCall },
+  { key: "nav.medicines" as TranslationKey, url: "/medicines", icon: Pill },
+  { key: "nav.reports" as TranslationKey, url: "/reports", icon: FileText },
+  { key: "nav.appointments" as TranslationKey, url: "/appointments", icon: CalendarDays },
 ];
 
-const wellnessItems = [
-  { title: "Fitness", url: "/fitness", icon: Activity },
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
+const wellnessItems: { key: TranslationKey; url: string; icon: any }[] = [
+  { key: "nav.fitness" as TranslationKey, url: "/fitness", icon: Activity },
+  { key: "nav.analytics" as TranslationKey, url: "/analytics", icon: BarChart3 },
 ];
 
-const systemItems = [
-  { title: "Emergency", url: "/emergency", icon: Siren },
-  { title: "Notifications", url: "/notifications", icon: Bell },
-  { title: "Settings", url: "/settings", icon: Settings },
+const systemItems: { key: TranslationKey; url: string; icon: any }[] = [
+  { key: "nav.emergency" as TranslationKey, url: "/emergency", icon: Siren },
+  { key: "nav.notifications" as TranslationKey, url: "/notifications", icon: Bell },
+  { key: "nav.settings" as TranslationKey, url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
+  const { t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isActive = (url: string) => pathname === url;
 
@@ -49,15 +51,15 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Overview</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("nav.groupOverview")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={t(item.key)}>
                     <Link to={item.url}>
                       <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <span>{t(item.key)}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -67,15 +69,15 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Wellness</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("nav.groupWellness")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {wellnessItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={t(item.key)}>
                     <Link to={item.url}>
                       <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <span>{t(item.key)}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -85,15 +87,15 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>System</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("nav.groupSystem")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {systemItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={t(item.key)}>
                     <Link to={item.url}>
                       <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <span>{t(item.key)}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
