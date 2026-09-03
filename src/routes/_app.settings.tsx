@@ -28,7 +28,7 @@ import { useI18n } from "@/lib/i18n";
 import { LANGUAGES, getLanguageMeta, type LanguageCode } from "@/lib/i18n-languages";
 import {
   AVATAR_ACCEPT, BLOOD_GROUPS, compressAvatar, initialsFrom, isValidEmail,
-  validateImage, type UserProfile, fileToDataUrl, getStoredProfile, saveStoredProfile,
+  validateImage, type UserProfile, getStoredProfile, saveStoredProfile,
 } from "@/lib/profile-helpers";
 import {
   DEVICE_TYPES, DeviceError, bluetoothSupport, deliverNotification, disconnectDevice,
