@@ -1,8 +1,5 @@
 /**
- * Lovable AI Gateway client helper for CareOS AI / Sahara Health OS.
- * Uses the OpenAI-compatible chat completions endpoint with the project-scoped
- * LOVABLE_API_KEY (auto-provisioned, server-only). Includes model fallback and
- * bounded retry for 429 / 5xx spikes.
+ * Lovable AI Gateway & Direct Gemini API client helper for CareOS AI / Sahara Health OS.
  */
 
 export const FALLBACK_MODELS = [
@@ -15,9 +12,21 @@ export const DEFAULT_AI_MODEL = FALLBACK_MODELS[0];
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-/** Server-only: the key must never be exposed via VITE_* (browser bundle). */
+/** Server-only: check all potential environment keys across process.env & import.meta.env. */
 export function getAiApiKey(): string | null {
-  const key = (process.env["LOVABLE_API_KEY"] || "").trim();
+  const env = typeof process !== "undefined" ? process.env : ({} as any);
+  const metaEnv = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : ({} as any);
+
+  const key = (
+    env["GEMINI_API_KEY"] ||
+    metaEnv["GEMINI_API_KEY"] ||
+    env["VITE_GEMINI_API_KEY"] ||
+    metaEnv["VITE_GEMINI_API_KEY"] ||
+    env["LOVABLE_API_KEY"] ||
+    metaEnv["LOVABLE_API_KEY"] ||
+    env["LOVABLE_AI_KEY"] ||
+    ""
+  ).trim();
   return key || null;
 }
 
@@ -42,7 +51,7 @@ export function describeAiError(status: number, body: string): string {
   return `The AI request failed (${status}). ${detail}`;
 }
 
-const TERMINAL = (s: number) => s === 400 || s === 401 || s === 402 || s === 403;
+const TERMINAL = (s: number) => s === 400 || s === 402;
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -67,10 +76,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Converts ChatMessages into OpenAI chat-completions format.
- * image_url parts pass through; file parts with data URLs become image_url parts.
- */
+/** Converts ChatMessages into OpenAI chat-completions format. */
 function convertMessages(messages: ChatMessage[], explicitSystem?: string) {
   const out: Array<Record<string, unknown>> = [];
   if (explicitSystem) out.push({ role: "system", content: explicitSystem });
@@ -98,10 +104,65 @@ function convertMessages(messages: ChatMessage[], explicitSystem?: string) {
   return out;
 }
 
-/**
- * Streams chat completions from the Lovable AI Gateway with model fallback on 429/5xx.
- * Returns a plain-text stream Response.
- */
+/** Direct fallback for Google Gemini REST API */
+async function callDirectGeminiApi<T>(key: string, system?: string, userContent?: any): Promise<T> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+
+  const parts: any[] = [];
+  if (typeof userContent === "string") {
+    parts.push({ text: userContent });
+  } else if (Array.isArray(userContent)) {
+    for (const item of userContent) {
+      if (item.type === "text" && item.text) {
+        parts.push({ text: item.text });
+      } else if (item.type === "image_url" && item.image_url?.url) {
+        const urlStr = item.image_url.url;
+        const match = urlStr.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+        if (match) {
+          parts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+        }
+      } else if (item.type === "file" && item.file?.file_data) {
+        const urlStr = item.file.file_data;
+        const match = urlStr.match(/^data:(.+);base64,(.+)$/);
+        if (match) {
+          parts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+        }
+      }
+    }
+  }
+
+  const payload: any = {
+    contents: [{ role: "user", parts }],
+    generationConfig: { response_mime_type: "application/json" },
+  };
+
+  if (system) {
+    payload.system_instruction = { parts: [{ text: system }] };
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Direct Gemini API error (${res.status}): ${errText.slice(0, 200)}`);
+  }
+
+  const json = await res.json();
+  const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]) as T;
+    throw new Error("Direct Gemini API response was not valid JSON.");
+  }
+}
+
+/** Stream chat completions from Gateway */
 export async function streamGeminiChat({
   messages,
   model = DEFAULT_AI_MODEL,
@@ -109,7 +170,6 @@ export async function streamGeminiChat({
 }: AiStreamOptions): Promise<Response> {
   const key = getAiApiKey();
   if (!key) {
-    console.error("[ai] LOVABLE_API_KEY secret is not configured");
     return new Response(
       "The AI service is not configured yet: the server AI key is missing.",
       { status: 500 }
@@ -208,9 +268,7 @@ export async function streamGeminiChat({
   return new Response(lastErrorText || "The AI request failed.", { status: lastStatus || 503 });
 }
 
-/**
- * Requests structured JSON from the Lovable AI Gateway with retry & fallback on 429/5xx.
- */
+/** Requests structured JSON from AI Gateway or Direct Gemini API fallback */
 export async function callGeminiJson<T = Record<string, unknown>>({
   system,
   messages = [],
@@ -220,7 +278,7 @@ export async function callGeminiJson<T = Record<string, unknown>>({
 }: AiJsonOptions): Promise<T> {
   const key = getAiApiKey();
   if (!key) {
-    console.error("[ai] LOVABLE_API_KEY secret is not configured");
+    console.error("[ai] Server AI key is missing");
     throw new Error("The AI service is not configured yet: the server AI key is missing.");
   }
 
@@ -271,6 +329,16 @@ export async function callGeminiJson<T = Record<string, unknown>>({
         const text = await res.text().catch(() => "");
         lastError = describeAiError(res.status, text);
         console.error(`[ai] ${candidateModel} -> ${lastError}`);
+
+        // If gateway authentication fails or fails to authorize key, attempt direct Gemini REST API call
+        if (res.status === 401 || res.status === 403 || key.startsWith("AQ.")) {
+          try {
+            return await callDirectGeminiApi<T>(key, system, userContent);
+          } catch (directErr) {
+            console.error("[ai] Direct Gemini API failed:", directErr);
+          }
+        }
+
         if (TERMINAL(res.status)) throw new AiTerminalError(lastError);
 
         if ((res.status === 429 || res.status >= 500) && attempt === 0) {
@@ -287,7 +355,15 @@ export async function callGeminiJson<T = Record<string, unknown>>({
     }
   }
 
+  // Final fallback attempt with direct Gemini API if key is present
+  try {
+    return await callDirectGeminiApi<T>(key, system, userContent);
+  } catch (finalErr) {
+    console.error("[ai] Final Direct Gemini API fallback failed:", finalErr);
+  }
+
   throw new Error(lastError || "The AI request failed.");
 }
 
 class AiTerminalError extends Error {}
+
