@@ -150,6 +150,7 @@ export async function streamGeminiChat({
 
   const modelsToTry = [model, ...FALLBACK_MODELS.filter((m) => m !== model)];
   let lastErrorText = "";
+  let lastStatus = 0;
 
   for (const candidateModel of modelsToTry) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:streamGenerateContent?alt=sse&key=${key}`;
@@ -244,9 +245,8 @@ export async function callGeminiJson<T = Record<string, unknown>>({
 }: GeminiJsonOptions): Promise<T> {
   const key = getGeminiApiKey();
   if (!key) {
-    throw new Error(
-      "GEMINI_API_KEY is not configured. Please add your free Gemini API key to .env file."
-    );
+    console.error("[gemini] GEMINI_API_KEY secret is not configured");
+    throw new Error("The AI service is not configured yet: the GEMINI_API_KEY secret is missing on the server.");
   }
 
   const allMessages: ChatMessage[] = [...messages];
@@ -285,35 +285,40 @@ export async function callGeminiJson<T = Record<string, unknown>>({
           const data = (await res.json()) as {
             candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
           };
-          const content = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+          const content = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
           try {
             return JSON.parse(content) as T;
           } catch {
             const match = content.match(/\{[\s\S]*\}/);
             if (match) {
-              return JSON.parse(match[0]) as T;
+              try { return JSON.parse(match[0]) as T; } catch { /* fall through */ }
             }
           }
+          lastError = "Gemini returned a response that was not valid JSON.";
+          console.error(`[gemini] ${candidateModel} -> ${lastError}`);
+          break;
         }
 
         const text = await res.text().catch(() => "");
-        lastError = `[${res.status}]: ${text.slice(0, 200)}`;
+        lastError = describeGeminiError(res.status, text);
+        console.error(`[gemini] ${candidateModel} -> ${lastError}`);
+        if (TERMINAL(res.status)) throw new GeminiTerminalError(lastError);
 
-        if (res.status === 503 || res.status === 429) {
-          // Model high demand or rate limit, wait and retry or fallback
-          await sleep(800 * (attempt + 1));
+        if ((res.status === 503 || res.status === 429) && attempt === 0) {
+          await sleep(800);
           continue;
         }
-
-        break; // Other error, try next candidate model
+        break;
       } catch (err) {
+        if (err instanceof GeminiTerminalError) throw err;
         lastError = err instanceof Error ? err.message : String(err);
+        console.error(`[gemini] network error: ${lastError}`);
         await sleep(500);
       }
     }
   }
 
-  throw new Error(
-    `Google Gemini is currently experiencing temporary high demand on all model clusters. Please try again in a few moments. (Details: ${lastError})`
-  );
+  throw new Error(lastError || "Gemini request failed.");
 }
+
+class GeminiTerminalError extends Error {}
