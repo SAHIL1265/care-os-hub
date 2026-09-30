@@ -162,7 +162,102 @@ async function callDirectGeminiApi<T>(key: string, system?: string, userContent?
   }
 }
 
-/** Stream chat completions from Gateway */
+/** Direct fallback for Google Gemini REST API Streaming */
+async function streamDirectGeminiApi(
+  key: string,
+  messages: ChatMessage[],
+  temperature = 0.7
+): Promise<Response> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${key}`;
+
+  let systemInstruction: string | undefined;
+  const contents: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [];
+
+  for (const m of messages) {
+    if (m.role === "system") {
+      systemInstruction = typeof m.content === "string" ? m.content : undefined;
+      continue;
+    }
+    const role = m.role === "assistant" ? "model" : "user";
+    const parts: Array<Record<string, unknown>> = [];
+    if (typeof m.content === "string") {
+      parts.push({ text: m.content });
+    } else if (Array.isArray(m.content)) {
+      for (const item of m.content) {
+        if (item.type === "text" && item.text) parts.push({ text: item.text });
+        else if (item.type === "image_url" && item.image_url?.url) {
+          const match = (item.image_url.url as string).match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+          if (match) parts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+        }
+      }
+    }
+    if (parts.length > 0) contents.push({ role, parts });
+  }
+
+  const payload: Record<string, unknown> = {
+    contents,
+    generationConfig: { temperature },
+  };
+  if (systemInstruction) {
+    payload.system_instruction = { parts: [{ text: systemInstruction }] };
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Direct Gemini API stream error (${res.status}): ${errText.slice(0, 200)}`);
+  }
+
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const reader = res.body!.getReader();
+      let buf = "";
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() ?? "";
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data:")) continue;
+            const dataStr = trimmed.slice(5).trim();
+            if (!dataStr) continue;
+            try {
+              const parsed = JSON.parse(dataStr);
+              const textChunk = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (textChunk) {
+                controller.enqueue(encoder.encode(textChunk));
+              }
+            } catch {}
+          }
+        }
+      } catch (err) {
+        controller.error(err);
+        return;
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+    },
+  });
+}
+
+/** Stream chat completions from Gateway or Direct Gemini API */
 export async function streamGeminiChat({
   messages,
   model = DEFAULT_AI_MODEL,
@@ -174,6 +269,14 @@ export async function streamGeminiChat({
       "The AI service is not configured yet: the server AI key is missing.",
       { status: 500 }
     );
+  }
+
+  if (key.startsWith("AQ.")) {
+    try {
+      return await streamDirectGeminiApi(key, messages, temperature);
+    } catch (err) {
+      console.error("[ai] Direct Gemini API stream failed:", err);
+    }
   }
 
   const payload: Record<string, unknown> = {
@@ -263,6 +366,13 @@ export async function streamGeminiChat({
         await sleep(500);
       }
     }
+  }
+
+  // Final fallback to direct Gemini streaming API if gateway returned 401/403 or error
+  try {
+    return await streamDirectGeminiApi(key, messages, temperature);
+  } catch (directErr) {
+    console.error("[ai] Final Direct Gemini stream fallback failed:", directErr);
   }
 
   return new Response(lastErrorText || "The AI request failed.", { status: lastStatus || 503 });
