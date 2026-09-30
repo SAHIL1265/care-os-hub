@@ -21,6 +21,9 @@ export function getAiApiKey(): string | null {
   return key || null;
 }
 
+/** Back-compat alias for older call sites. */
+export const getGeminiApiKey = getAiApiKey;
+
 /** Maps a gateway HTTP failure to a safe, user-readable message. Never includes the key. */
 export function describeAiError(status: number, body: string): string {
   let detail = "";
