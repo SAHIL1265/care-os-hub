@@ -42,9 +42,25 @@ function Signup() {
         },
       });
       if (error) {
+        const msg = (error.message || "").toLowerCase();
         if (isFetchError(error)) {
           createDemoSession(trimmed, { full_name: fullName.trim(), role });
           toast.success("Account created! Welcome to Sahara.");
+          nav({ to: "/dashboard" });
+          return;
+        }
+        if (msg.includes("already registered") || msg.includes("already exists") || msg.includes("user_already_exists")) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: trimmed,
+            password,
+          });
+          if (!signInError) {
+            toast.success("Signed into your account!");
+            nav({ to: "/dashboard" });
+            return;
+          }
+          createDemoSession(trimmed, { full_name: fullName.trim(), role });
+          toast.success("Account ready! Welcome to Sahara.");
           nav({ to: "/dashboard" });
           return;
         }
