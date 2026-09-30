@@ -13,17 +13,31 @@ export const FALLBACK_MODELS = [
 
 export const DEFAULT_GEMINI_MODEL = FALLBACK_MODELS[0];
 
+/** Server-only: the key must never be exposed via VITE_* (browser bundle). */
 export function getGeminiApiKey(): string | null {
-  const metaEnv = (import.meta as unknown as { env?: Record<string, string> })?.env;
-  return (
-    process.env.GEMINI_API_KEY ||
-    process.env.VITE_GEMINI_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    metaEnv?.GEMINI_API_KEY ||
-    metaEnv?.VITE_GEMINI_API_KEY ||
-    null
-  );
+  const key = (process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"] || "").trim();
+  return key || null;
 }
+
+/** Maps a Gemini HTTP failure to a safe, user-readable message. Never includes the key. */
+export function describeGeminiError(status: number, body: string): string {
+  let detail = "";
+  try {
+    detail = (JSON.parse(body) as { error?: { message?: string } })?.error?.message ?? "";
+  } catch {
+    detail = body.slice(0, 200);
+  }
+  detail = detail.replace(/key=[^&\s]+/g, "key=***");
+  if (status === 400 && /API key/i.test(detail)) return `Gemini rejected the API key (invalid key). ${detail}`;
+  if (status === 401) return `Gemini authentication failed. ${detail}`;
+  if (status === 403) return `Gemini permission denied (key restricted or API not enabled). ${detail}`;
+  if (status === 404) return `Gemini model not found. ${detail}`;
+  if (status === 429) return `Gemini quota or rate limit reached. Please wait and try again. ${detail}`;
+  if (status >= 500) return `Gemini is temporarily unavailable. Please try again shortly. ${detail}`;
+  return `Gemini request failed (${status}). ${detail}`;
+}
+
+const TERMINAL = (s: number) => s === 400 || s === 401 || s === 403;
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -115,8 +129,9 @@ export async function streamGeminiChat({
 }: GeminiStreamOptions): Promise<Response> {
   const key = getGeminiApiKey();
   if (!key) {
+    console.error("[gemini] GEMINI_API_KEY secret is not configured");
     return new Response(
-      "GEMINI_API_KEY is not configured. Please add your free Gemini API key from https://aistudio.google.com/ to your .env file.",
+      "The AI service is not configured yet: the GEMINI_API_KEY secret is missing on the server.",
       { status: 500 }
     );
   }
@@ -194,26 +209,27 @@ export async function streamGeminiChat({
           });
         }
 
-        lastErrorText = await upstream.text().catch(() => "");
-        // If 503 (High Demand) or 429 (Rate Limit), wait briefly and retry or try next fallback model
-        if (upstream.status === 503 || upstream.status === 429) {
-          await sleep(600 * (attempt + 1));
+        const raw = await upstream.text().catch(() => "");
+        lastStatus = upstream.status;
+        lastErrorText = describeGeminiError(upstream.status, raw);
+        console.error(`[gemini] ${candidateModel} -> ${lastErrorText}`);
+        if (TERMINAL(upstream.status)) {
+          return new Response(lastErrorText, { status: upstream.status });
+        }
+        if ((upstream.status === 503 || upstream.status === 429) && attempt === 0) {
+          await sleep(800);
           continue;
         }
-
-        // If other error (e.g. 404), break to next candidate model
         break;
       } catch (err) {
         lastErrorText = err instanceof Error ? err.message : String(err);
+        console.error(`[gemini] network error: ${lastErrorText}`);
         await sleep(500);
       }
     }
   }
 
-  return new Response(
-    `Google Gemini is currently experiencing high demand. Please try again in a few seconds. (${lastErrorText.slice(0, 150)})`,
-    { status: 503 }
-  );
+  return new Response(lastErrorText || "Gemini request failed.", { status: lastStatus || 503 });
 }
 
 /**
