@@ -2,11 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   Activity, Bot, HeartPulse, ShieldCheck, Sparkles, Stethoscope, ThermometerSun,
-  TrendingUp, Wind, AlertCircle, FileText,
+  TrendingUp, Wind, AlertCircle,
 } from "lucide-react";
 import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
-  RadialBarChart, RadialBar, PolarAngleAxis,
+  ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis,
 } from "recharts";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -16,8 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  user, heartRateData, appointments, medicines,
-  family, aiRecommendations,
+  user, appointments, medicines, family, aiRecommendations,
 } from "@/lib/demo-data";
 
 import { useCallback, useEffect, useState } from "react";
@@ -30,25 +28,23 @@ export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
 });
 
-type ReportRow = {
-  id: string;
-  file_name: string;
-  report_type: string;
-  patient_label: string;
-  created_at: string;
-  ai_summary: string | null;
-  structured_results?: any[];
-  analysis?: any;
-  vitals?: any;
-};
+function formatVital(val?: any, fallbackVal?: any): string {
+  const check = (v: any) => {
+    if (v == null) return null;
+    const s = String(v).trim();
+    if (!s || s === "--" || s.toLowerCase() === "null" || s.toLowerCase() === "undefined" || s.toLowerCase() === "nan") return null;
+    return s;
+  };
+  return check(val) || check(fallbackVal) || "--";
+}
 
 function Dashboard() {
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   const [userName, setUserName] = useState<string>(user.name);
-  const [userReports, setUserReports] = useState<ReportRow[]>([]);
-  const [loadingReports, setLoadingReports] = useState(true);
+  const [hasReport, setHasReport] = useState<boolean>(false);
+  const [vitalsData, setVitalsData] = useState<Record<string, string> | null>(null);
 
   const syncUserName = useCallback(async () => {
     const { data: auth } = await supabase.auth.getUser();
@@ -60,83 +56,82 @@ function Dashboard() {
     }
   }, []);
 
-  const loadUserReports = useCallback(async () => {
-    setLoadingReports(true);
+  const loadVitals = useCallback(async () => {
+    let local: Record<string, string> | null = null;
     try {
-      const { data } = await supabase
+      const raw = typeof window !== "undefined" ? localStorage.getItem("careos_dashboard_vitals") : null;
+      if (raw) local = JSON.parse(raw);
+    } catch {}
+
+    try {
+      const { data, error } = await supabase
         .from("medical_reports")
-        .select("id,file_name,report_type,patient_label,created_at,ai_summary,structured_results,analysis")
-        .order("created_at", { ascending: false });
-      setUserReports((data as ReportRow[]) ?? []);
-    } catch {
-      setUserReports([]);
-    } finally {
-      setLoadingReports(false);
+        .select("analysis,structured_results")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        const parsed = extractMedicalMetrics(data[0]?.analysis || { structured_results: data[0]?.structured_results });
+        const hr = formatVital(parsed.heart_rate, local?.heart_rate);
+        const bp = formatVital(parsed.blood_pressure, local?.blood_pressure);
+        const bs = formatVital(parsed.blood_sugar, local?.blood_sugar);
+        const o2 = formatVital(parsed.spo2, local?.spo2);
+        const temp = formatVital(parsed.temperature, local?.temperature);
+        const bmiVal = formatVital(parsed.bmi, local?.bmi);
+
+        const anyValid = [hr, bp, bs, o2, temp, bmiVal].some((v) => v !== "--");
+        setVitalsData({
+          heart_rate: hr,
+          blood_pressure: bp,
+          blood_sugar: bs,
+          spo2: o2,
+          temperature: temp,
+          bmi: bmiVal,
+        });
+        setHasReport(anyValid);
+        return;
+      }
+    } catch {}
+
+    if (local && Object.values(local).some((v) => formatVital(v) !== "--")) {
+      setVitalsData({
+        heart_rate: formatVital(local.heart_rate),
+        blood_pressure: formatVital(local.blood_pressure),
+        blood_sugar: formatVital(local.blood_sugar),
+        spo2: formatVital(local.spo2),
+        temperature: formatVital(local.temperature),
+        bmi: formatVital(local.bmi),
+      });
+      setHasReport(true);
+    } else {
+      setVitalsData(null);
+      setHasReport(false);
     }
   }, []);
 
   useEffect(() => {
     void syncUserName();
-    void loadUserReports();
-    const handleVitalsUpdate = () => { void loadUserReports(); };
+    void loadVitals();
+    const handleVitalsUpdate = () => { void loadVitals(); };
     window.addEventListener(PROFILE_UPDATED_EVENT, syncUserName);
     window.addEventListener(VITAL_UPDATED_EVENT, handleVitalsUpdate);
     return () => {
       window.removeEventListener(PROFILE_UPDATED_EVENT, syncUserName);
       window.removeEventListener(VITAL_UPDATED_EVENT, handleVitalsUpdate);
     };
-  }, [syncUserName, loadUserReports]);
+  }, [syncUserName, loadVitals]);
 
   const firstName = userName.trim().split(" ")[0] || "User";
-  const hasReport = userReports.length > 0;
 
-  // Extract vitals from user reports or local storage fallback
-  let extractedVitals = {
-    healthScore: "--",
-    heartRate: "--",
-    bloodPressure: "--",
-    bloodSugar: "--",
-    oxygen: "--",
-    temperature: "--",
-    bmi: "--",
+  const extractedVitals = {
+    healthScore: hasReport ? "87" : "--",
+    heartRate: formatVital(vitalsData?.heart_rate),
+    bloodPressure: formatVital(vitalsData?.blood_pressure),
+    bloodSugar: formatVital(vitalsData?.blood_sugar),
+    oxygen: formatVital(vitalsData?.spo2),
+    temperature: formatVital(vitalsData?.temperature),
+    bmi: formatVital(vitalsData?.bmi),
   };
-
-  let localVitals: any = null;
-  try {
-    const raw = localStorage.getItem("careos_dashboard_vitals");
-    if (raw) localVitals = JSON.parse(raw);
-  } catch {}
-
-  if (hasReport || localVitals) {
-    let metrics = {
-      heart_rate: localVitals?.heart_rate || "72",
-      blood_pressure: localVitals?.blood_pressure || "118/76",
-      blood_sugar: localVitals?.blood_sugar || "96",
-      spo2: localVitals?.spo2 || "98",
-      temperature: localVitals?.temperature || "98.4",
-      bmi: localVitals?.bmi || "22.6",
-    };
-
-    for (const r of userReports) {
-      const parsed = extractMedicalMetrics(r.analysis || { structured_results: r.structured_results });
-      if (parsed.heart_rate !== "--") metrics.heart_rate = parsed.heart_rate;
-      if (parsed.blood_pressure !== "--") metrics.blood_pressure = parsed.blood_pressure;
-      if (parsed.blood_sugar !== "--") metrics.blood_sugar = parsed.blood_sugar;
-      if (parsed.spo2 !== "--") metrics.spo2 = parsed.spo2;
-      if (parsed.temperature !== "--") metrics.temperature = parsed.temperature;
-      if (parsed.bmi !== "--") metrics.bmi = parsed.bmi;
-    }
-
-    extractedVitals = {
-      healthScore: "87",
-      heartRate: metrics.heart_rate,
-      bloodPressure: metrics.blood_pressure,
-      bloodSugar: metrics.blood_sugar,
-      oxygen: metrics.spo2,
-      temperature: metrics.temperature,
-      bmi: metrics.bmi,
-    };
-  }
 
   return (
     <div className="space-y-6">
@@ -256,93 +251,54 @@ function Dashboard() {
           icon={HeartPulse}
           label="Heart Rate"
           value={extractedVitals.heartRate}
-          unit={hasReport ? "bpm" : ""}
-          delta={hasReport ? "From report" : "No report provided"}
+          unit="bpm"
+          delta={hasReport && extractedVitals.heartRate !== "--" ? "From report" : "No report provided"}
           tone="destructive"
         />
         <StatCard
           icon={Activity}
           label="Blood Pressure"
           value={extractedVitals.bloodPressure}
-          unit={hasReport ? "mmHg" : ""}
-          delta={hasReport ? "From report" : "No report provided"}
+          unit="mmHg"
+          delta={hasReport && extractedVitals.bloodPressure !== "--" ? "From report" : "No report provided"}
           tone="primary"
         />
         <StatCard
           icon={TrendingUp}
           label="Blood Sugar"
           value={extractedVitals.bloodSugar}
-          unit={hasReport ? "mg/dL" : ""}
-          delta={hasReport ? "From report" : "No report provided"}
+          unit="mg/dL"
+          delta={hasReport && extractedVitals.bloodSugar !== "--" ? "From report" : "No report provided"}
           tone="warning"
         />
         <StatCard
           icon={Wind}
           label="Oxygen (SpO₂)"
           value={extractedVitals.oxygen}
-          unit={hasReport ? "%" : ""}
-          delta={hasReport ? "From report" : "No report provided"}
+          unit="%"
+          delta={hasReport && extractedVitals.oxygen !== "--" ? "From report" : "No report provided"}
           tone="info"
         />
         <StatCard
           icon={ThermometerSun}
           label="Temperature"
           value={extractedVitals.temperature}
-          unit={hasReport ? "°F" : ""}
-          delta={hasReport ? "From report" : "No report provided"}
+          unit="°F"
+          delta={hasReport && extractedVitals.temperature !== "--" ? "From report" : "No report provided"}
           tone="warning"
         />
         <StatCard
           icon={TrendingUp}
           label="BMI"
           value={extractedVitals.bmi}
-          unit={hasReport ? "kg/m²" : ""}
-          delta={hasReport ? "From report" : "No report provided"}
+          unit="kg/m²"
+          delta={hasReport && extractedVitals.bmi !== "--" ? "From report" : "No report provided"}
           tone="emerald"
         />
       </div>
 
-      {/* Main Charts & Upcoming Section */}
+      {/* Main Dashboard Sections Grid: Appointments + Medicines + Family */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Heart rate today</CardTitle>
-            <CardDescription>Beats per minute · last 24 hours</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {hasReport ? (
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={heartRateData}>
-                    <defs>
-                      <linearGradient id="hr" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.6} />
-                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                    <XAxis dataKey="time" tick={{ fontSize: 11 }} interval={3} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--card)" }} />
-                    <Area type="monotone" dataKey="bpm" stroke="var(--primary)" strokeWidth={2.5} fill="url(#hr)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex h-64 flex-col items-center justify-center text-center">
-                <HeartPulse className="h-8 w-8 text-muted-foreground/40 mb-2" />
-                <p className="text-sm font-medium text-muted-foreground">No Heart Rate Data</p>
-                <p className="text-xs text-muted-foreground/70 max-w-xs mt-1">
-                  Upload a medical report to view your heart rate trends over time.
-                </p>
-                <Button asChild size="sm" variant="outline" className="mt-3">
-                  <Link to="/reports">Upload Report</Link>
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><Stethoscope className="h-4 w-4 text-primary" />Upcoming appointments</CardTitle>
@@ -361,10 +317,7 @@ function Dashboard() {
             ))}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Medicines + Family + Recent Reports Grid */}
-      <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Medicine reminders</CardTitle>
@@ -405,38 +358,6 @@ function Dashboard() {
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald" />Recent reports</CardTitle>
-            <CardDescription>Analyzed by AI</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {userReports.length > 0 ? (
-              userReports.slice(0, 4).map((r) => (
-                <div key={r.id} className="flex items-center gap-3 rounded-xl border p-2.5">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-emerald/10 text-emerald">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold">{r.report_type || r.file_name}</div>
-                    <div className="truncate text-[11px] text-muted-foreground">Patient: {r.patient_label}</div>
-                  </div>
-                  <Badge variant="outline" className="border-emerald/40 text-emerald text-[10px]">
-                    Analyzed
-                  </Badge>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground space-y-2">
-                <p>No medical reports uploaded yet.</p>
-                <Button asChild size="sm" variant="outline">
-                  <Link to="/reports">Upload First Report</Link>
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
