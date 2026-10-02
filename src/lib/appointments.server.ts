@@ -104,12 +104,10 @@ async function twilioForm(path: string, form: Record<string, string>) {
     return JSON.parse(text) as Record<string, unknown>;
   }
 
-  const authHeader = process.env.LOVABLE_API_KEY ? `Bearer ${process.env.LOVABLE_API_KEY}` : "";
   const headers: Record<string, string> = {
     "X-Connection-Api-Key": (process.env.TWILIO_API_KEY as string) || "",
     "Content-Type": "application/x-www-form-urlencoded",
   };
-  if (authHeader) headers.Authorization = authHeader;
   const res = await fetch(`https://connector-gateway.lovable.dev/twilio${path}`, {
     method: "POST",
     headers,

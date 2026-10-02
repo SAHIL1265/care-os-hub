@@ -23,7 +23,7 @@ import { ReportCamera } from "@/components/report-camera";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ACCEPT_ATTR, PROCESSING_STEPS, REPORT_DISCLAIMER, formatDate, fileToDataUrl,
-  validateReportFile, type ReportAnalysis,
+  validateReportFile, type ReportAnalysis, extractMedicalMetrics, VITAL_UPDATED_EVENT,
 } from "@/lib/report-helpers";
 
 export const Route = createFileRoute("/_app/reports/")({
@@ -53,6 +53,41 @@ type ReportRow = {
 type Member = { id: string; name: string; relationship: string };
 type Mode = "upload" | "scan" | "ai";
 
+const LOCAL_REPORTS_KEY = "careos_local_medical_reports";
+
+export function getLocalReports(): Array<Record<string, unknown>> {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem(LOCAL_REPORTS_KEY) : null;
+    return raw ? (JSON.parse(raw) as Array<Record<string, unknown>>) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveLocalReport(report: Record<string, unknown>) {
+  try {
+    const list = getLocalReports();
+    list.unshift(report);
+    localStorage.setItem(LOCAL_REPORTS_KEY, JSON.stringify(list));
+  } catch (e) {
+    console.error("Failed to save local report", e);
+  }
+}
+
+export function removeLocalReport(id: string) {
+  try {
+    const list = getLocalReports().filter((r) => r.id !== id);
+    localStorage.setItem(LOCAL_REPORTS_KEY, JSON.stringify(list));
+  } catch (e) {
+    console.error("Failed to remove local report", e);
+  }
+}
+
+function isUuid(str?: string): boolean {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
 function ReportsPage() {
   const nav = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -78,8 +113,22 @@ function ReportsPage() {
         .order("created_at", { ascending: false }),
       supabase.from("family_members").select("id,name,relationship").order("name"),
     ]);
-    if (r.error) toast.error("We couldn't load your reports. Please try again.");
-    setReports((r.data as ReportRow[]) ?? []);
+
+    const remoteReports = (r.data as ReportRow[]) ?? [];
+    const localReports = getLocalReports();
+
+    const map = new Map<string, ReportRow>();
+    for (const item of [...remoteReports, ...localReports]) {
+      const id = (item as ReportRow)?.id;
+      if (id && !map.has(id)) {
+        map.set(id, item as ReportRow);
+      }
+    }
+    const combined = Array.from(map.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    setReports(combined);
     setMembers((m.data as Member[]) ?? []);
     setLoading(false);
   }
@@ -105,14 +154,15 @@ function ReportsPage() {
     try {
       const { data: auth } = await supabase.auth.getUser();
       const { data: sessionData } = await supabase.auth.getSession();
-      const uid = auth.user?.id || sessionData.session?.user?.id || "demo-user-id";
+      const rawUid = auth.user?.id || sessionData.session?.user?.id;
+      const validUid = isUuid(rawUid) ? rawUid : null;
 
       const member = members.find((m) => m.id === patient);
       const patientLabel = member ? `${member.name} (${member.relationship})` : "Me";
 
       // 1. Store the original document privately (per-user folder).
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      let path = `${uid}/${crypto.randomUUID()}.${ext}`;
+      let path = `${validUid || "demo"}/${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from("medical-reports").upload(path, file, {
         contentType: file.type || undefined, upsert: false,
       });
@@ -145,8 +195,10 @@ function ReportsPage() {
       }
 
       setStep(4);
-      const insert = await supabase.from("medical_reports").insert({
-        user_id: uid,
+      const reportId = crypto.randomUUID();
+      const recordData = {
+        id: reportId,
+        user_id: validUid,
         family_member_id: member?.id ?? null,
         patient_label: patientLabel,
         file_name: file.name,
@@ -163,15 +215,42 @@ function ReportsPage() {
         simple_explanation: analysis.simple_explanation ?? null,
         ocr_confidence: typeof analysis.ocr_confidence === "number" ? analysis.ocr_confidence : null,
         processing_status: "complete",
-      }).select("id").single();
+        created_at: new Date().toISOString(),
+      };
 
-      if (insert.error) throw new Error("We couldn't save this analysis. Please try again.");
+      let finalReportId: string = reportId;
+
+      if (validUid) {
+        const insert = await supabase
+          .from("medical_reports")
+          .insert(recordData as never)
+          .select("id")
+          .single();
+
+        if (insert.data?.id) {
+          finalReportId = insert.data.id;
+        } else if (insert.error) {
+          console.warn("Supabase insert failed, saving report to local fallback:", insert.error);
+          saveLocalReport(recordData);
+        }
+      } else {
+        saveLocalReport(recordData);
+      }
+
+      // Extract medical vitals and sync with dashboard state
+      const vitals = extractMedicalMetrics(analysis);
+      try {
+        localStorage.setItem("careos_dashboard_vitals", JSON.stringify(vitals));
+        window.dispatchEvent(new CustomEvent(VITAL_UPDATED_EVENT, { detail: vitals }));
+      } catch (e) {
+        console.error("Failed to sync dashboard vitals:", e);
+      }
 
       setStep(5);
       setPending(null);
       setStep(-1);
       toast.success("Analysis complete");
-      nav({ to: "/reports/$reportId", params: { reportId: insert.data.id }, search: { ask: mode === "ai" ? true : undefined } });
+      nav({ to: "/reports/$reportId", params: { reportId: finalReportId } as any, search: { ask: mode === "ai" ? true : undefined } });
     } catch (err) {
       setStep(-1);
       setFailure(err instanceof Error ? err.message : "We couldn't analyze this report right now. Please try again.");
@@ -179,10 +258,10 @@ function ReportsPage() {
   }
 
   async function remove(id: string) {
+    removeLocalReport(id);
     const { data: row } = await supabase.from("medical_reports").select("file_path").eq("id", id).maybeSingle();
     if (row?.file_path) await supabase.storage.from("medical-reports").remove([row.file_path]);
-    const { error } = await supabase.from("medical_reports").delete().eq("id", id);
-    if (error) { toast.error("We couldn't delete this report. Please try again."); return; }
+    await supabase.from("medical_reports").delete().eq("id", id);
     setReports((prev) => prev.filter((r) => r.id !== id));
     toast.success("Report deleted");
   }

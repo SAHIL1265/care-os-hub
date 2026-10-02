@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   REPORT_DISCLAIMER, buildReportContext, formatDate, statusMeta, type ReportAnalysis,
 } from "@/lib/report-helpers";
+import { getLocalReports } from "./_app.reports.index";
 
 export const Route = createFileRoute("/_app/reports/$reportId")({
   validateSearch: (search: Record<string, unknown>) => ({ ask: search.ask === true || search.ask === "true" ? true : undefined }),
@@ -77,22 +78,33 @@ function ReportDetail() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("medical_reports")
       .select("id,file_name,file_path,file_type,report_type,patient_label,created_at,extracted_text,analysis,chat")
       .eq("id", reportId)
       .maybeSingle();
-    if (error || !data) {
-      toast.error("We couldn't open this report.");
+
+    if (data) {
+      setRow(data as Row);
+      setMessages(Array.isArray(data.chat) ? (data.chat as ChatMsg[]) : []);
+      if (data.file_path) {
+        const signed = await supabase.storage.from("medical-reports").createSignedUrl(data.file_path, 3600);
+        setFileUrl(signed.data?.signedUrl ?? null);
+      }
       setLoading(false);
       return;
     }
-    setRow(data as Row);
-    setMessages(Array.isArray(data.chat) ? (data.chat as ChatMsg[]) : []);
-    if (data.file_path) {
-      const signed = await supabase.storage.from("medical-reports").createSignedUrl(data.file_path, 3600);
-      setFileUrl(signed.data?.signedUrl ?? null);
+
+    const localList = getLocalReports();
+    const localItem = localList.find((r) => r.id === reportId);
+    if (localItem) {
+      setRow(localItem as unknown as Row);
+      setMessages(Array.isArray(localItem.chat) ? (localItem.chat as ChatMsg[]) : []);
+      setLoading(false);
+      return;
     }
+
+    toast.error("We couldn't open this report.");
     setLoading(false);
   }
 
@@ -100,7 +112,19 @@ function ReportDetail() {
   const results = a.structured_results ?? [];
 
   async function persistChat(next: ChatMsg[]) {
-    await supabase.from("medical_reports").update({ chat: next as never }).eq("id", reportId);
+    const { error } = await supabase.from("medical_reports").update({ chat: next as never }).eq("id", reportId);
+    if (error) {
+      try {
+        const localList = getLocalReports();
+        const idx = localList.findIndex((r) => r.id === reportId);
+        if (idx !== -1) {
+          localList[idx].chat = next as never;
+          localStorage.setItem("careos_local_medical_reports", JSON.stringify(localList));
+        }
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   async function send(text: string) {

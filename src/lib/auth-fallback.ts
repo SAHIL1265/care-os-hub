@@ -58,3 +58,34 @@ export function createDemoSession(email: string, metadata?: DemoUserMetadata) {
 
   return demoSession;
 }
+
+export async function getValidAuthToken(): Promise<string | null> {
+  let token: string | null | undefined = null;
+
+  try {
+    const { data } = await supabase.auth.getSession();
+    token = data.session?.access_token;
+  } catch {}
+
+  if (!token && typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("supabase.auth.token");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        token = parsed?.access_token || parsed?.currentSession?.access_token;
+      }
+    } catch {}
+  }
+
+  if (
+    token &&
+    typeof token === "string" &&
+    token !== "null" &&
+    token !== "undefined" &&
+    token.trim().split(".").length === 3
+  ) {
+    return token.trim();
+  }
+
+  return null;
+}

@@ -62,13 +62,9 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       throw new Error('Unauthorized: Only Bearer tokens are supported');
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) {
-      throw new Error('Unauthorized: No token provided');
-    }
-
-    if (token.split('.').length !== 3) {
-      throw new Error('Unauthorized: Invalid token');
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token || token === 'null' || token === 'undefined' || token.split('.').length !== 3) {
+      throw new Error('Unauthorized: Expected 3 parts in JWT; invalid authorization token provided');
     }
 
     const supabase = createClient<Database>(

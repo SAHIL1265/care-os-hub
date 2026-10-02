@@ -37,7 +37,69 @@ export type ReportAnalysis = {
   doctor_questions?: string[];
   warning_signs?: string[];
   urgent?: boolean;
+  vitals?: {
+    heart_rate?: string | null;
+    bpm?: string | null;
+    blood_pressure?: string | null;
+    sys_dia?: string | null;
+    blood_sugar?: string | null;
+    glucose?: string | null;
+    spo2?: string | null;
+    temperature?: string | null;
+    bmi?: string | null;
+    [key: string]: any;
+  };
 };
+
+export const VITAL_UPDATED_EVENT = "careos_vitals_updated";
+
+export function extractMedicalMetrics(analysis?: ReportAnalysis | null) {
+  const extracted = {
+    heart_rate: "--",
+    blood_pressure: "--",
+    blood_sugar: "--",
+    spo2: "--",
+    temperature: "--",
+    bmi: "--",
+  };
+
+  if (!analysis) return extracted;
+
+  const v = analysis.vitals;
+  if (v) {
+    if (v.heart_rate || v.bpm) extracted.heart_rate = (v.heart_rate || v.bpm)!;
+    if (v.blood_pressure || v.sys_dia) extracted.blood_pressure = (v.blood_pressure || v.sys_dia)!;
+    if (v.blood_sugar || v.glucose) extracted.blood_sugar = (v.blood_sugar || v.glucose)!;
+    if (v.spo2) extracted.spo2 = v.spo2!;
+    if (v.temperature) extracted.temperature = v.temperature!;
+    if (v.bmi) extracted.bmi = v.bmi!;
+  }
+
+  const results = analysis.structured_results || [];
+  if (Array.isArray(results)) {
+    for (const item of results) {
+      const t = (item.test || "").toLowerCase();
+      const val = item.result;
+      if (!val) continue;
+
+      if (extracted.heart_rate === "--" && (t.includes("heart") || t.includes("pulse") || t.includes("bpm"))) {
+        extracted.heart_rate = val;
+      } else if (extracted.blood_pressure === "--" && (t.includes("pressure") || t.includes("bp") || t.includes("sys"))) {
+        extracted.blood_pressure = val;
+      } else if (extracted.blood_sugar === "--" && (t.includes("sugar") || t.includes("glucose") || t.includes("hba1c") || t.includes("fasting"))) {
+        extracted.blood_sugar = val;
+      } else if (extracted.spo2 === "--" && (t.includes("oxygen") || t.includes("spo2") || t.includes("o2"))) {
+        extracted.spo2 = val;
+      } else if (extracted.temperature === "--" && (t.includes("temp") || t.includes("fever"))) {
+        extracted.temperature = val;
+      } else if (extracted.bmi === "--" && (t.includes("bmi") || t.includes("body mass index"))) {
+        extracted.bmi = val;
+      }
+    }
+  }
+
+  return extracted;
+}
 
 export const REPORT_DISCLAIMER =
   "Sahara provides AI-generated health information to help you understand medical reports. It does not replace professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare professional for medical decisions.";

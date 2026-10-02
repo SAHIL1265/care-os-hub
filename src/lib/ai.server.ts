@@ -1,57 +1,110 @@
-/**
- * Lovable AI Gateway & Direct Gemini API client helper for CareOS AI / Sahara Health OS.
- */
+import fs from "node:fs";
+import path from "node:path";
 
 export const FALLBACK_MODELS = [
-  "google/gemini-2.5-flash",
-  "google/gemini-2.5-flash-lite",
-  "google/gemini-3.1-flash-lite",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-3.8-flash",
 ];
 
 export const DEFAULT_AI_MODEL = FALLBACK_MODELS[0];
 
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const LOVABLE_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-/** Server-only: check all potential environment keys across process.env & import.meta.env. */
+/** Server-only: check all potential Gemini environment keys across process.env, import.meta.env & dynamic .env read. */
 export function getAiApiKey(): string | null {
   const env = typeof process !== "undefined" ? process.env : ({} as any);
   const metaEnv = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : ({} as any);
 
-  const key = (
+  let key = (
     env["GEMINI_API_KEY"] ||
     metaEnv["GEMINI_API_KEY"] ||
     env["VITE_GEMINI_API_KEY"] ||
     metaEnv["VITE_GEMINI_API_KEY"] ||
-    env["LOVABLE_API_KEY"] ||
-    metaEnv["LOVABLE_API_KEY"] ||
-    env["LOVABLE_AI_KEY"] ||
     ""
   ).trim();
+
+  if (!key && typeof process !== "undefined" && typeof fs !== "undefined" && fs.readFileSync) {
+    try {
+      const envPath = path.resolve(process.cwd(), ".env");
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, "utf-8");
+        const match =
+          content.match(/^GEMINI_API_KEY=["']?([^"'\r\n]+)["']?/m) ||
+          content.match(/^VITE_GEMINI_API_KEY=["']?([^"'\r\n]+)["']?/m);
+        if (match && match[1]) {
+          key = match[1].trim();
+        }
+      }
+    } catch {
+      /* ignore read failure */
+    }
+  }
+
+  if (key) {
+    key = key.replace(/^["']|["']$/g, "").trim();
+  }
+
   return key || null;
 }
+
+/** Validates key format: Google Gemini keys start with "AIzaSy" or "AQ.", Lovable proxy keys start with "sk_". */
+export function isValidKeyFormat(key: string): boolean {
+  if (!key || !key.trim()) return false;
+  return key.startsWith("AIzaSy") || key.startsWith("AQ.") || key.startsWith("sk_");
+}
+
+export const INVALID_KEY_MESSAGE =
+  "Your GEMINI_API_KEY in .env is missing or invalid. Please check your GEMINI_API_KEY in .env file.";
 
 /** Back-compat alias for older call sites. */
 export const getGeminiApiKey = getAiApiKey;
 
-/** Maps a gateway HTTP failure to a safe, user-readable message. Never includes the key. */
+export function normalizeModel(model?: string): string {
+  if (!model) return DEFAULT_AI_MODEL;
+  let cleaned = model.replace(/^google\//, "").trim();
+  if (
+    cleaned === "gemini-2.5-flash" ||
+    cleaned === "gemini-2.5-flash-lite" ||
+    cleaned === "gemini-2.0-flash" ||
+    cleaned === "gemini-1.5-pro" ||
+    cleaned === "gemini-1.5-flash" ||
+    cleaned === "gemini-1.5-flash-8b"
+  ) {
+    cleaned = "gemini-3.5-flash-lite";
+  }
+  return cleaned || DEFAULT_AI_MODEL;
+}
+
+/** Maps a HTTP failure from AI services to a safe, user-readable message. */
 export function describeAiError(status: number, body: string): string {
   let detail = "";
   try {
-    detail = (JSON.parse(body) as { error?: { message?: string } })?.error?.message ?? "";
+    const parsed = JSON.parse(body);
+    detail = parsed?.error?.message ?? parsed?.message ?? parsed?.title ?? "";
   } catch {
     detail = body.slice(0, 200);
   }
-  if (status === 400) return `The AI request was invalid. ${detail}`;
-  if (status === 401) return "The AI service key is missing or invalid on the server.";
-  if (status === 402) return `AI credits are exhausted. ${detail}`;
-  if (status === 403) return `The AI service denied the request. ${detail}`;
-  if (status === 404) return `The AI model is unavailable. ${detail}`;
-  if (status === 429) return `The AI service is rate limited. Please wait and try again. ${detail}`;
-  if (status >= 500) return `The AI service is temporarily unavailable. Please try again shortly. ${detail}`;
+
+  const lower = detail.toLowerCase();
+  const rawLower = body.toLowerCase();
+  const isKeyError =
+    status === 401 ||
+    status === 403 ||
+    (status === 400 &&
+      (lower.includes("key") ||
+        rawLower.includes("api_key_invalid") ||
+        lower.includes("unauthorized") ||
+        lower.includes("prefix")));
+
+  if (isKeyError) {
+    return INVALID_KEY_MESSAGE;
+  }
+  if (status === 404) return `The requested Gemini model is unavailable. ${detail}`;
+  if (status === 429) return `The AI service is rate limited. Please try again in a few moments. ${detail}`;
+  if (status >= 500) return `The AI service is temporarily unavailable (${status}). Please try again shortly. ${detail}`;
   return `The AI request failed (${status}). ${detail}`;
 }
-
-const TERMINAL = (s: number) => s === 400 || s === 402;
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -72,12 +125,8 @@ interface AiJsonOptions {
   temperature?: number;
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/** Converts ChatMessages into OpenAI chat-completions format. */
-function convertMessages(messages: ChatMessage[], explicitSystem?: string) {
+/** Converts ChatMessages into OpenAI chat-completions format (for Gateway). */
+function convertOpenAiMessages(messages: ChatMessage[], explicitSystem?: string) {
   const out: Array<Record<string, unknown>> = [];
   if (explicitSystem) out.push({ role: "system", content: explicitSystem });
 
@@ -104,160 +153,100 @@ function convertMessages(messages: ChatMessage[], explicitSystem?: string) {
   return out;
 }
 
-/** Direct fallback for Google Gemini REST API */
-async function callDirectGeminiApi<T>(key: string, system?: string, userContent?: any): Promise<T> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+/** Converts ChatMessages, explicit system instructions, and user content into Gemini API format. */
+export function formatGeminiPayload(
+  messages: ChatMessage[] = [],
+  explicitSystem?: string,
+  extraUserContent?: string | Array<Record<string, unknown>>
+) {
+  const systemTexts: string[] = [];
+  if (explicitSystem && explicitSystem.trim()) {
+    systemTexts.push(explicitSystem.trim());
+  }
 
-  const parts: any[] = [];
-  if (typeof userContent === "string") {
-    parts.push({ text: userContent });
-  } else if (Array.isArray(userContent)) {
-    for (const item of userContent) {
-      if (item.type === "text" && item.text) {
-        parts.push({ text: item.text });
-      } else if (item.type === "image_url" && item.image_url?.url) {
-        const urlStr = item.image_url.url;
-        const match = urlStr.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
-        if (match) {
-          parts.push({ inline_data: { mime_type: match[1], data: match[2] } });
-        }
-      } else if (item.type === "file" && item.file?.file_data) {
-        const urlStr = item.file.file_data;
-        const match = urlStr.match(/^data:(.+);base64,(.+)$/);
-        if (match) {
-          parts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+  const rawContents: Array<{ role: "user" | "model"; parts: Array<Record<string, unknown>> }> = [];
+
+  const processContentParts = (content: string | Array<Record<string, unknown>>) => {
+    const parts: Array<Record<string, unknown>> = [];
+    if (typeof content === "string") {
+      if (content.trim()) {
+        parts.push({ text: content });
+      }
+    } else if (Array.isArray(content)) {
+      for (const item of content) {
+        if (item.type === "text" && typeof item.text === "string" && item.text) {
+          parts.push({ text: item.text });
+        } else if (item.type === "image_url" && item.image_url) {
+          const urlStr = typeof item.image_url === "string" ? item.image_url : (item.image_url as any)?.url;
+          if (typeof urlStr === "string") {
+            const match = urlStr.match(/^data:([^;]+);base64,(.+)$/);
+            if (match) {
+              parts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+            }
+          }
+        } else if (item.type === "file" && item.file) {
+          const fileData = (item.file as any)?.file_data;
+          if (typeof fileData === "string") {
+            const match = fileData.match(/^data:([^;]+);base64,(.+)$/);
+            if (match) {
+              parts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+            }
+          }
         }
       }
     }
-  }
-
-  const payload: any = {
-    contents: [{ role: "user", parts }],
-    generationConfig: { response_mime_type: "application/json" },
+    return parts;
   };
-
-  if (system) {
-    payload.system_instruction = { parts: [{ text: system }] };
-  }
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Direct Gemini API error (${res.status}): ${errText.slice(0, 200)}`);
-  }
-
-  const json = await res.json();
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]) as T;
-    throw new Error("Direct Gemini API response was not valid JSON.");
-  }
-}
-
-/** Direct fallback for Google Gemini REST API Streaming */
-async function streamDirectGeminiApi(
-  key: string,
-  messages: ChatMessage[],
-  temperature = 0.7
-): Promise<Response> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${key}`;
-
-  let systemInstruction: string | undefined;
-  const contents: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [];
 
   for (const m of messages) {
     if (m.role === "system") {
-      systemInstruction = typeof m.content === "string" ? m.content : undefined;
+      if (typeof m.content === "string" && m.content.trim()) {
+        systemTexts.push(m.content.trim());
+      }
       continue;
     }
-    const role = m.role === "assistant" ? "model" : "user";
-    const parts: Array<Record<string, unknown>> = [];
-    if (typeof m.content === "string") {
-      parts.push({ text: m.content });
-    } else if (Array.isArray(m.content)) {
-      for (const item of m.content) {
-        if (item.type === "text" && item.text) parts.push({ text: item.text });
-        else if (item.type === "image_url" && item.image_url?.url) {
-          const match = (item.image_url.url as string).match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
-          if (match) parts.push({ inline_data: { mime_type: match[1], data: match[2] } });
-        }
-      }
+
+    const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
+    const parts = processContentParts(m.content);
+
+    if (parts.length > 0) {
+      rawContents.push({ role, parts });
     }
-    if (parts.length > 0) contents.push({ role, parts });
   }
 
-  const payload: Record<string, unknown> = {
-    contents,
-    generationConfig: { temperature },
-  };
-  if (systemInstruction) {
-    payload.system_instruction = { parts: [{ text: systemInstruction }] };
+  if (extraUserContent) {
+    const extraParts = processContentParts(extraUserContent);
+    if (extraParts.length > 0) {
+      rawContents.push({ role: "user", parts: extraParts });
+    }
   }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Direct Gemini API stream error (${res.status}): ${errText.slice(0, 200)}`);
+  // Merge consecutive turns with the same role to ensure valid alternating structure
+  const contents: Array<{ role: "user" | "model"; parts: Array<Record<string, unknown>> }> = [];
+  for (const c of rawContents) {
+    const last = contents[contents.length - 1];
+    if (last && last.role === c.role) {
+      last.parts.push(...c.parts);
+    } else {
+      contents.push(c);
+    }
   }
 
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
+  const result: {
+    system_instruction?: { parts: Array<{ text: string }> };
+    contents: Array<{ role: "user" | "model"; parts: Array<Record<string, unknown>> }>;
+  } = { contents };
 
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const reader = res.body!.getReader();
-      let buf = "";
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split("\n");
-          buf = lines.pop() ?? "";
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith("data:")) continue;
-            const dataStr = trimmed.slice(5).trim();
-            if (!dataStr) continue;
-            try {
-              const parsed = JSON.parse(dataStr);
-              const textChunk = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (textChunk) {
-                controller.enqueue(encoder.encode(textChunk));
-              }
-            } catch {}
-          }
-        }
-      } catch (err) {
-        controller.error(err);
-        return;
-      }
-      controller.close();
-    },
-  });
+  if (systemTexts.length > 0) {
+    result.system_instruction = {
+      parts: [{ text: systemTexts.join("\n\n") }],
+    };
+  }
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-    },
-  });
+  return result;
 }
 
-/** Stream chat completions from Gateway or Direct Gemini API */
+/** Stream chat completions from Gemini API or Gateway */
 export async function streamGeminiChat({
   messages,
   model = DEFAULT_AI_MODEL,
@@ -265,120 +254,144 @@ export async function streamGeminiChat({
 }: AiStreamOptions): Promise<Response> {
   const key = getAiApiKey();
   if (!key) {
-    return new Response(
-      "The AI service is not configured yet: the server AI key is missing.",
-      { status: 500 }
-    );
+    return new Response(INVALID_KEY_MESSAGE, { status: 401 });
   }
 
-  if (key.startsWith("AQ.")) {
+  if (!isValidKeyFormat(key)) {
+    return new Response(INVALID_KEY_MESSAGE, { status: 401 });
+  }
+
+  const isGatewayKey = key.startsWith("sk_");
+
+  if (isGatewayKey) {
+    const openAiPayload = {
+      messages: convertOpenAiMessages(messages),
+      model: "google/gemini-3.5-flash-lite",
+      temperature,
+      stream: true,
+    };
+
     try {
-      return await streamDirectGeminiApi(key, messages, temperature);
+      const res = await fetch(LOVABLE_GATEWAY_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify(openAiPayload),
+      });
+
+      if (res.ok && res.body) {
+        return new Response(res.body, {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+          },
+        });
+      }
+      const raw = await res.text().catch(() => "");
+      return new Response(describeAiError(res.status, raw), { status: res.status });
     } catch (err) {
-      console.error("[ai] Direct Gemini API stream failed:", err);
+      return new Response(err instanceof Error ? err.message : String(err), { status: 500 });
     }
   }
 
-  const payload: Record<string, unknown> = {
-    messages: convertMessages(messages),
-    temperature,
-    stream: true,
-  };
+  // Direct Google Gemini API endpoint for AIzaSy... or AQ... keys
+  const primaryModel = normalizeModel(model);
+  const modelsToTry = [primaryModel, ...FALLBACK_MODELS.filter((m) => m !== primaryModel)];
+  const payload = formatGeminiPayload(messages);
 
-  const modelsToTry = [model, ...FALLBACK_MODELS.filter((m) => m !== model)];
   let lastErrorText = "";
-  let lastStatus = 0;
+  let lastStatus = 500;
 
   for (const candidateModel of modelsToTry) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const upstream = await fetch(GATEWAY_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${key}`,
-          },
-          body: JSON.stringify({ ...payload, model: candidateModel }),
-        });
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:streamGenerateContent?alt=sse&key=${key}`;
 
-        if (upstream.ok && upstream.body) {
-          const encoder = new TextEncoder();
-          const decoder = new TextDecoder();
-          const stream = new ReadableStream<Uint8Array>({
-            async start(controller) {
-              const reader = upstream.body!.getReader();
-              let buf = "";
-              try {
-                while (true) {
-                  const { done, value } = await reader.read();
-                  if (done) break;
-                  buf += decoder.decode(value, { stream: true });
-                  const lines = buf.split("\n");
-                  buf = lines.pop() ?? "";
-                  for (const line of lines) {
-                    const trimmed = line.trim();
-                    if (!trimmed.startsWith("data:")) continue;
-                    const dataStr = trimmed.slice(5).trim();
-                    if (!dataStr || dataStr === "[DONE]") continue;
-                    try {
-                      const parsed = JSON.parse(dataStr);
-                      const textChunk: string | undefined =
-                        parsed?.choices?.[0]?.delta?.content;
-                      if (textChunk) {
-                        controller.enqueue(encoder.encode(textChunk));
-                      }
-                    } catch {
-                      /* ignore partial json */
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          generationConfig: { temperature },
+        }),
+      });
+
+      if (res.ok && res.body) {
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+
+        const stream = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            const reader = res.body!.getReader();
+            let buf = "";
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                const lines = buf.split("\n");
+                buf = lines.pop() ?? "";
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (!trimmed.startsWith("data:")) continue;
+                  const dataStr = trimmed.slice(5).trim();
+                  if (!dataStr || dataStr === "[DONE]") continue;
+                  try {
+                    const parsed = JSON.parse(dataStr);
+                    const textChunk = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (textChunk) {
+                      controller.enqueue(encoder.encode(textChunk));
                     }
+                  } catch {
+                    /* ignore incomplete json */
                   }
                 }
-              } catch (err) {
-                controller.error(err);
-                return;
               }
-              controller.close();
-            },
-          });
+              if (buf.trim().startsWith("data:")) {
+                const dataStr = buf.trim().slice(5).trim();
+                if (dataStr && dataStr !== "[DONE]") {
+                  try {
+                    const parsed = JSON.parse(dataStr);
+                    const textChunk = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (textChunk) controller.enqueue(encoder.encode(textChunk));
+                  } catch { }
+                }
+              }
+            } catch (err) {
+              controller.error(err);
+              return;
+            }
+            controller.close();
+          },
+        });
 
-          return new Response(stream, {
-            headers: {
-              "Content-Type": "text/plain; charset=utf-8",
-              "Cache-Control": "no-cache, no-transform",
-            },
-          });
-        }
-
-        const raw = await upstream.text().catch(() => "");
-        lastStatus = upstream.status;
-        lastErrorText = describeAiError(upstream.status, raw);
-        console.error(`[ai] ${candidateModel} -> ${lastErrorText}`);
-        if (TERMINAL(upstream.status)) {
-          return new Response(lastErrorText, { status: upstream.status });
-        }
-        if ((upstream.status === 429 || upstream.status >= 500) && attempt === 0) {
-          await sleep(800);
-          continue;
-        }
-        break;
-      } catch (err) {
-        lastErrorText = err instanceof Error ? err.message : String(err);
-        console.error(`[ai] network error: ${lastErrorText}`);
-        await sleep(500);
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+          },
+        });
       }
+
+      const raw = await res.text().catch(() => "");
+      lastStatus = res.status;
+      lastErrorText = describeAiError(res.status, raw);
+      console.error(`[ai stream] ${candidateModel} -> ${lastErrorText}`);
+
+      if (lastErrorText === INVALID_KEY_MESSAGE || res.status === 401 || res.status === 403) {
+        return new Response(lastErrorText, { status: 401 });
+      }
+    } catch (err) {
+      lastErrorText = err instanceof Error ? err.message : String(err);
+      console.error(`[ai stream] ${candidateModel} network error: ${lastErrorText}`);
     }
   }
 
-  // Final fallback to direct Gemini streaming API if gateway returned 401/403 or error
-  try {
-    return await streamDirectGeminiApi(key, messages, temperature);
-  } catch (directErr) {
-    console.error("[ai] Final Direct Gemini stream fallback failed:", directErr);
-  }
-
-  return new Response(lastErrorText || "The AI request failed.", { status: lastStatus || 503 });
+  return new Response(lastErrorText || "The AI stream request failed.", { status: lastStatus });
 }
 
-/** Requests structured JSON from AI Gateway or Direct Gemini API fallback */
+/** Requests structured JSON directly from Google Gemini REST API or Gateway */
 export async function callGeminiJson<T = Record<string, unknown>>({
   system,
   messages = [],
@@ -387,93 +400,97 @@ export async function callGeminiJson<T = Record<string, unknown>>({
   temperature = 0.2,
 }: AiJsonOptions): Promise<T> {
   const key = getAiApiKey();
-  if (!key) {
-    console.error("[ai] Server AI key is missing");
-    throw new Error("The AI service is not configured yet: the server AI key is missing.");
+  if (!key || !isValidKeyFormat(key)) {
+    console.error("[ai] GEMINI_API_KEY is missing or invalid");
+    throw new Error(INVALID_KEY_MESSAGE);
   }
 
-  const allMessages: ChatMessage[] = [...messages];
-  if (userContent) {
-    allMessages.push({ role: "user", content: userContent });
+  const isGatewayKey = key.startsWith("sk_");
+
+  if (isGatewayKey) {
+    const allMessages = [...messages];
+    if (userContent) allMessages.push({ role: "user", content: userContent });
+    const payload = {
+      messages: convertOpenAiMessages(allMessages, system),
+      model: "google/gemini-3.5-flash-lite",
+      temperature,
+      response_format: { type: "json_object" },
+    };
+
+    const res = await fetch(LOVABLE_GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content ?? "";
+      return JSON.parse(content) as T;
+    }
+    const raw = await res.text().catch(() => "");
+    throw new Error(describeAiError(res.status, raw));
   }
 
-  const payload: Record<string, unknown> = {
-    messages: convertMessages(allMessages, system),
-    temperature,
-    response_format: { type: "json_object" },
-  };
+  const primaryModel = normalizeModel(model);
+  const modelsToTry = [primaryModel, ...FALLBACK_MODELS.filter((m) => m !== primaryModel)];
+  const payload = formatGeminiPayload(messages, system, userContent);
 
-  const modelsToTry = [model, ...FALLBACK_MODELS.filter((m) => m !== model)];
-  let lastError = "";
+  let lastErrorText = "";
 
   for (const candidateModel of modelsToTry) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await fetch(GATEWAY_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${key}`,
-          },
-          body: JSON.stringify({ ...payload, model: candidateModel }),
-        });
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${key}`;
 
-        if (res.ok) {
-          const data = (await res.json()) as {
-            choices?: Array<{ message?: { content?: string } }>;
-          };
-          const content = data.choices?.[0]?.message?.content ?? "";
-          try {
-            return JSON.parse(content) as T;
-          } catch {
-            const match = content.match(/\{[\s\S]*\}/);
-            if (match) {
-              try { return JSON.parse(match[0]) as T; } catch { /* fall through */ }
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          generationConfig: {
+            response_mime_type: "application/json",
+            temperature,
+          },
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        try {
+          return JSON.parse(text) as T;
+        } catch {
+          const match = text.match(/\{[\s\S]*\}/) || text.match(/\[[\s\S]*\]/);
+          if (match) {
+            try {
+              return JSON.parse(match[0]) as T;
+            } catch {
+              /* ignore */
             }
           }
-          lastError = "The AI returned a response that was not valid JSON.";
-          console.error(`[ai] ${candidateModel} -> ${lastError}`);
-          break;
+          throw new Error("The Gemini API returned a response that was not valid JSON.");
         }
-
-        const text = await res.text().catch(() => "");
-        lastError = describeAiError(res.status, text);
-        console.error(`[ai] ${candidateModel} -> ${lastError}`);
-
-        // If gateway authentication fails or fails to authorize key, attempt direct Gemini REST API call
-        if (res.status === 401 || res.status === 403 || key.startsWith("AQ.")) {
-          try {
-            return await callDirectGeminiApi<T>(key, system, userContent);
-          } catch (directErr) {
-            console.error("[ai] Direct Gemini API failed:", directErr);
-          }
-        }
-
-        if (TERMINAL(res.status)) throw new AiTerminalError(lastError);
-
-        if ((res.status === 429 || res.status >= 500) && attempt === 0) {
-          await sleep(800);
-          continue;
-        }
-        break;
-      } catch (err) {
-        if (err instanceof AiTerminalError) throw err;
-        lastError = err instanceof Error ? err.message : String(err);
-        console.error(`[ai] network error: ${lastError}`);
-        await sleep(500);
       }
+
+      const text = await res.text().catch(() => "");
+      lastErrorText = describeAiError(res.status, text);
+      console.error(`[ai json] ${candidateModel} -> ${lastErrorText}`);
+
+      if (lastErrorText === INVALID_KEY_MESSAGE || res.status === 401 || res.status === 403) {
+        throw new Error(lastErrorText);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("GEMINI_API_KEY")) {
+        throw err;
+      }
+      lastErrorText = err instanceof Error ? err.message : String(err);
+      console.error(`[ai json] ${candidateModel} error: ${lastErrorText}`);
     }
   }
 
-  // Final fallback attempt with direct Gemini API if key is present
-  try {
-    return await callDirectGeminiApi<T>(key, system, userContent);
-  } catch (finalErr) {
-    console.error("[ai] Final Direct Gemini API fallback failed:", finalErr);
-  }
-
-  throw new Error(lastError || "The AI request failed.");
+  throw new Error(lastErrorText || "The AI request failed.");
 }
-
-class AiTerminalError extends Error {}
 

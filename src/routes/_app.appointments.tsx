@@ -24,6 +24,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PageHeader } from "@/components/page-header";
 import { supabase } from "@/integrations/supabase/client";
+import { getValidAuthToken } from "@/lib/auth-fallback";
 import {
   advanceAiCall, endAiCall, saveReminders, startAiBookingCall,
 } from "@/lib/appointments.functions";
@@ -163,6 +164,11 @@ function AppointmentsPage() {
   async function beginAiCall(a: Appointment) {
     setConfirmAi(null);
     try {
+      const token = await getValidAuthToken();
+      if (!token || token.split(".").length !== 3) {
+        toast.error("Please sign in with a valid user session to place AI booking calls.");
+        return;
+      }
       const res = await startCall({ data: { appointmentId: a.id } });
       setCall({ id: res.callId, appointment: a, live: res.live });
     } catch (err) {

@@ -42,7 +42,8 @@ Return ONLY a valid JSON object with this exact shape:
   "simple_explanation": string,
   "doctor_questions": string[],
   "warning_signs": string[],
-  "urgent": boolean
+  "urgent": boolean,
+  "vitals": { "heart_rate": string | null, "blood_pressure": string | null, "blood_sugar": string | null, "spo2": string | null, "temperature": string | null, "bmi": string | null }
 }
 
 Keep sentences short and warm. No markdown inside the JSON strings.`;

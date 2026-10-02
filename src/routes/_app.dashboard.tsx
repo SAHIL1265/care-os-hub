@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
-  Activity, Bot, Droplets, Flame, Footprints, HeartPulse, Moon, ShieldCheck,
-  Sparkles, Stethoscope, ThermometerSun, TrendingUp, Wind, AlertCircle, FileText,
+  Activity, Bot, HeartPulse, ShieldCheck, Sparkles, Stethoscope, ThermometerSun,
+  TrendingUp, Wind, AlertCircle, FileText,
 } from "lucide-react";
 import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, LineChart, Line,
-  BarChart, Bar, CartesianGrid, RadialBarChart, RadialBar, PolarAngleAxis,
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
+  RadialBarChart, RadialBar, PolarAngleAxis,
 } from "recharts";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -16,13 +16,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  user, heartRateData, sleepData, stepsData, appointments, medicines,
+  user, heartRateData, appointments, medicines,
   family, aiRecommendations,
 } from "@/lib/demo-data";
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStoredProfile, PROFILE_UPDATED_EVENT } from "@/lib/profile-helpers";
+import { VITAL_UPDATED_EVENT, extractMedicalMetrics } from "@/lib/report-helpers";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · CareOS AI" }] }),
@@ -37,6 +38,8 @@ type ReportRow = {
   created_at: string;
   ai_summary: string | null;
   structured_results?: any[];
+  analysis?: any;
+  vitals?: any;
 };
 
 function Dashboard() {
@@ -62,7 +65,7 @@ function Dashboard() {
     try {
       const { data } = await supabase
         .from("medical_reports")
-        .select("id,file_name,report_type,patient_label,created_at,ai_summary,structured_results")
+        .select("id,file_name,report_type,patient_label,created_at,ai_summary,structured_results,analysis")
         .order("created_at", { ascending: false });
       setUserReports((data as ReportRow[]) ?? []);
     } catch {
@@ -75,14 +78,19 @@ function Dashboard() {
   useEffect(() => {
     void syncUserName();
     void loadUserReports();
+    const handleVitalsUpdate = () => { void loadUserReports(); };
     window.addEventListener(PROFILE_UPDATED_EVENT, syncUserName);
-    return () => window.removeEventListener(PROFILE_UPDATED_EVENT, syncUserName);
+    window.addEventListener(VITAL_UPDATED_EVENT, handleVitalsUpdate);
+    return () => {
+      window.removeEventListener(PROFILE_UPDATED_EVENT, syncUserName);
+      window.removeEventListener(VITAL_UPDATED_EVENT, handleVitalsUpdate);
+    };
   }, [syncUserName, loadUserReports]);
 
   const firstName = userName.trim().split(" ")[0] || "User";
   const hasReport = userReports.length > 0;
 
-  // Extract vitals if report exists
+  // Extract vitals from user reports or local storage fallback
   let extractedVitals = {
     healthScore: "--",
     heartRate: "--",
@@ -91,46 +99,42 @@ function Dashboard() {
     oxygen: "--",
     temperature: "--",
     bmi: "--",
-    steps: "--",
-    calories: "--",
   };
 
-  if (hasReport) {
-    let hr = "72";
-    let bp = "118/76";
-    let sugar = "96";
-    let spo2 = "98";
-    let temp = "98.4";
-    let bmiVal = "22.6";
+  let localVitals: any = null;
+  try {
+    const raw = localStorage.getItem("careos_dashboard_vitals");
+    if (raw) localVitals = JSON.parse(raw);
+  } catch {}
 
-    // Scan structured_results if available
+  if (hasReport || localVitals) {
+    let metrics = {
+      heart_rate: localVitals?.heart_rate || "72",
+      blood_pressure: localVitals?.blood_pressure || "118/76",
+      blood_sugar: localVitals?.blood_sugar || "96",
+      spo2: localVitals?.spo2 || "98",
+      temperature: localVitals?.temperature || "98.4",
+      bmi: localVitals?.bmi || "22.6",
+    };
+
     for (const r of userReports) {
-      const results = r.structured_results || [];
-      if (Array.isArray(results)) {
-        for (const item of results) {
-          const t = (item.test || "").toLowerCase();
-          const val = item.result;
-          if (!val) continue;
-          if (t.includes("heart") || t.includes("pulse")) hr = val;
-          else if (t.includes("pressure") || t.includes("bp")) bp = val;
-          else if (t.includes("sugar") || t.includes("glucose")) sugar = val;
-          else if (t.includes("oxygen") || t.includes("spo2")) spo2 = val;
-          else if (t.includes("temp")) temp = val;
-          else if (t.includes("bmi")) bmiVal = val;
-        }
-      }
+      const parsed = extractMedicalMetrics(r.analysis || { structured_results: r.structured_results });
+      if (parsed.heart_rate !== "--") metrics.heart_rate = parsed.heart_rate;
+      if (parsed.blood_pressure !== "--") metrics.blood_pressure = parsed.blood_pressure;
+      if (parsed.blood_sugar !== "--") metrics.blood_sugar = parsed.blood_sugar;
+      if (parsed.spo2 !== "--") metrics.spo2 = parsed.spo2;
+      if (parsed.temperature !== "--") metrics.temperature = parsed.temperature;
+      if (parsed.bmi !== "--") metrics.bmi = parsed.bmi;
     }
 
     extractedVitals = {
       healthScore: "87",
-      heartRate: hr,
-      bloodPressure: bp,
-      bloodSugar: sugar,
-      oxygen: spo2,
-      temperature: temp,
-      bmi: bmiVal,
-      steps: "8,742",
-      calories: "1,840",
+      heartRate: metrics.heart_rate,
+      bloodPressure: metrics.blood_pressure,
+      bloodSugar: metrics.blood_sugar,
+      oxygen: metrics.spo2,
+      temperature: metrics.temperature,
+      bmi: metrics.bmi,
     };
   }
 
@@ -160,7 +164,7 @@ function Dashboard() {
                   </div>
                   <p className="mt-3 max-w-sm text-sm text-white/80">
                     {hasReport
-                      ? "Your vitals and reports are analyzed. Cardio and hydration are trending up."
+                      ? "Your vitals and reports are analyzed. Cardio and vitals are trending optimal."
                       : "No medical report provided. Upload a patient report to view your health score & vitals."}
                   </p>
                   <div className="mt-5 flex gap-2">
@@ -246,8 +250,8 @@ function Dashboard() {
         </Card>
       )}
 
-      {/* Vitals grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Vitals grid: 6 cards aligned evenly */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <StatCard
           icon={HeartPulse}
           label="Heart Rate"
@@ -265,7 +269,7 @@ function Dashboard() {
           tone="primary"
         />
         <StatCard
-          icon={Droplets}
+          icon={TrendingUp}
           label="Blood Sugar"
           value={extractedVitals.bloodSugar}
           unit={hasReport ? "mg/dL" : ""}
@@ -296,25 +300,9 @@ function Dashboard() {
           delta={hasReport ? "From report" : "No report provided"}
           tone="emerald"
         />
-        <StatCard
-          icon={Footprints}
-          label="Steps"
-          value={extractedVitals.steps}
-          unit={hasReport ? "today" : ""}
-          delta={hasReport ? "+12% vs yday" : "No report provided"}
-          tone="primary"
-        />
-        <StatCard
-          icon={Flame}
-          label="Calories"
-          value={extractedVitals.calories}
-          unit={hasReport ? "kcal" : ""}
-          delta={hasReport ? "Goal: 2200" : "No report provided"}
-          tone="destructive"
-        />
       </div>
 
-      {/* Charts row */}
+      {/* Main Charts & Upcoming Section */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -357,96 +345,8 @@ function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2"><Moon className="h-4 w-4 text-primary" />Sleep score</CardTitle>
-            <CardDescription>{hasReport ? "7.4 hrs · Deep sleep +12%" : "No sleep report data"}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {hasReport ? (
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sleepData}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                    <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--card)" }} />
-                    <Bar dataKey="hours" fill="var(--primary)" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="deep" fill="var(--emerald)" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex h-64 flex-col items-center justify-center text-center">
-                <Moon className="h-8 w-8 text-muted-foreground/40 mb-2" />
-                <p className="text-sm font-medium text-muted-foreground">No Sleep Data</p>
-                <p className="text-xs text-muted-foreground/70 max-w-xs mt-1">
-                  Upload a report or sync device to view sleep stats.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Second row: activity + water + upcoming */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Daily activity</CardTitle>
-            <CardDescription>Steps this week</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {hasReport ? (
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={stepsData}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                    <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--card)" }} />
-                    <Line type="monotone" dataKey="steps" stroke="var(--emerald)" strokeWidth={3} dot={{ r: 4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex h-52 flex-col items-center justify-center text-center">
-                <Footprints className="h-8 w-8 text-muted-foreground/40 mb-2" />
-                <p className="text-sm font-medium text-muted-foreground">No Activity Data</p>
-                <p className="text-xs text-muted-foreground/70 max-w-xs mt-1">
-                  Upload a medical report to track fitness & activity stats.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2"><Droplets className="h-4 w-4 text-primary" />Water intake</CardTitle>
-            <CardDescription>{hasReport ? "2.1L of 2.5L" : "No report logged"}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center justify-center py-6">
-              <div className="relative h-40 w-24 overflow-hidden rounded-full border-4 border-primary/30 bg-muted/50">
-                <motion.div
-                  initial={{ height: 0 }}
-                  animate={{ height: `${hasReport ? (2.1 / 2.5) * 100 : 0}%` }}
-                  transition={{ duration: 1.2, ease: "easeOut" }}
-                  className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary to-emerald"
-                />
-              </div>
-              <div className="mt-4 flex gap-1.5">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className={`h-2 w-4 rounded ${hasReport && i < 7 ? "bg-primary" : "bg-muted"}`} />
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><Stethoscope className="h-4 w-4 text-primary" />Upcoming appointments</CardTitle>
-            <CardDescription>Next 3</CardDescription>
+            <CardDescription>Next 3 scheduled</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {appointments.slice(0, 3).map((a) => (
@@ -463,7 +363,7 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* Medicines + Family + Recent Reports */}
+      {/* Medicines + Family + Recent Reports Grid */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>

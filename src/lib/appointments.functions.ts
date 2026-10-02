@@ -3,7 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const startAiBookingCall = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { appointmentId: string }) => input)
+  .validator((input: { appointmentId: string }) => input)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { telephonyConfigured, placeOutboundCall } = await import("./appointments.server");
@@ -46,7 +46,7 @@ export const startAiBookingCall = createServerFn({ method: "POST" })
 
 export const advanceAiCall = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { callId: string }) => input)
+  .validator((input: { callId: string }) => input)
   .handler(async ({ data, context }) => {
     const { getGeminiApiKey } = await import("./ai.server");
     const key = getGeminiApiKey();
@@ -58,7 +58,7 @@ export const advanceAiCall = createServerFn({ method: "POST" })
 
 export const endAiCall = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { callId: string; cancelled?: boolean }) => input)
+  .validator((input: { callId: string; cancelled?: boolean }) => input)
   .handler(async ({ data, context }) => {
     const { getGeminiApiKey } = await import("./ai.server");
     const key = getGeminiApiKey();
@@ -69,7 +69,7 @@ export const endAiCall = createServerFn({ method: "POST" })
 
 export const saveReminders = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { appointmentId: string; offsets: number[]; sms: boolean }) => input)
+  .validator((input: { appointmentId: string; offsets: number[]; sms: boolean }) => input)
   .handler(async ({ data, context }) => {
     const { createReminders } = await import("./appointments-flow.server");
     const { data: appt, error } = await context.supabase.from("appointments").select("*").eq("id", data.appointmentId).maybeSingle();
@@ -82,7 +82,7 @@ export const saveReminders = createServerFn({ method: "POST" })
 
 export const dispatchSmsReminder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { reminderId: string }) => input)
+  .validator((input: { reminderId: string }) => input)
   .handler(async ({ data, context }) => {
     const { sendSms } = await import("./appointments.server");
     const { data: reminder } = await context.supabase.from("appointment_reminders").select("*").eq("id", data.reminderId).maybeSingle();
