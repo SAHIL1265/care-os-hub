@@ -262,7 +262,25 @@ function ReportsPage() {
     const { data: row } = await supabase.from("medical_reports").select("file_path").eq("id", id).maybeSingle();
     if (row?.file_path) await supabase.storage.from("medical-reports").remove([row.file_path]);
     await supabase.from("medical_reports").delete().eq("id", id);
-    setReports((prev) => prev.filter((r) => r.id !== id));
+    const remaining = reports.filter((r) => r.id !== id);
+    setReports(remaining);
+
+    if (remaining.length === 0) {
+      try {
+        localStorage.removeItem("careos_dashboard_vitals");
+      } catch {}
+      window.dispatchEvent(new CustomEvent(VITAL_UPDATED_EVENT, { detail: null }));
+    } else {
+      const nextReport = remaining[0];
+      const nextVitals = extractMedicalMetrics(
+        (nextReport as any)?.analysis || { structured_results: (nextReport as any)?.structured_results }
+      );
+      try {
+        localStorage.setItem("careos_dashboard_vitals", JSON.stringify(nextVitals));
+      } catch {}
+      window.dispatchEvent(new CustomEvent(VITAL_UPDATED_EVENT, { detail: nextVitals }));
+    }
+
     toast.success("Report deleted");
   }
 

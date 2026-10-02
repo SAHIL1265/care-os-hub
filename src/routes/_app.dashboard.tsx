@@ -80,6 +80,40 @@ function Dashboard() {
         const bmiVal = formatVital(parsed.bmi, local?.bmi);
 
         const anyValid = [hr, bp, bs, o2, temp, bmiVal].some((v) => v !== "--");
+        if (anyValid) {
+          setVitalsData({
+            heart_rate: hr,
+            blood_pressure: bp,
+            blood_sugar: bs,
+            spo2: o2,
+            temperature: temp,
+            bmi: bmiVal,
+          });
+          setHasReport(true);
+          return;
+        }
+      }
+    } catch {}
+
+    // Check local reports fallback
+    let localList: any[] = [];
+    try {
+      const rawLocal = typeof window !== "undefined" ? localStorage.getItem("careos_local_medical_reports") : null;
+      if (rawLocal) localList = JSON.parse(rawLocal);
+    } catch {}
+
+    if (localList.length > 0) {
+      const latestLocal = localList[0];
+      const parsed = extractMedicalMetrics(latestLocal.analysis || { structured_results: latestLocal.structured_results });
+      const hr = formatVital(parsed.heart_rate, local?.heart_rate);
+      const bp = formatVital(parsed.blood_pressure, local?.blood_pressure);
+      const bs = formatVital(parsed.blood_sugar, local?.blood_sugar);
+      const o2 = formatVital(parsed.spo2, local?.spo2);
+      const temp = formatVital(parsed.temperature, local?.temperature);
+      const bmiVal = formatVital(parsed.bmi, local?.bmi);
+
+      const anyValid = [hr, bp, bs, o2, temp, bmiVal].some((v) => v !== "--");
+      if (anyValid) {
         setVitalsData({
           heart_rate: hr,
           blood_pressure: bp,
@@ -88,25 +122,17 @@ function Dashboard() {
           temperature: temp,
           bmi: bmiVal,
         });
-        setHasReport(anyValid);
+        setHasReport(true);
         return;
       }
-    } catch {}
-
-    if (local && Object.values(local).some((v) => formatVital(v) !== "--")) {
-      setVitalsData({
-        heart_rate: formatVital(local.heart_rate),
-        blood_pressure: formatVital(local.blood_pressure),
-        blood_sugar: formatVital(local.blood_sugar),
-        spo2: formatVital(local.spo2),
-        temperature: formatVital(local.temperature),
-        bmi: formatVital(local.bmi),
-      });
-      setHasReport(true);
-    } else {
-      setVitalsData(null);
-      setHasReport(false);
     }
+
+    // Zero reports in system: purge vitals and reset all indicators to '--'
+    try {
+      localStorage.removeItem("careos_dashboard_vitals");
+    } catch {}
+    setVitalsData(null);
+    setHasReport(false);
   }, []);
 
   useEffect(() => {
